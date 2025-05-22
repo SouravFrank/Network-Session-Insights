@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, Sparkles, List, CalendarDays, CalendarRange, Calendar } from "lucide-react";
 import type { SessionData, RawDayAggregation, RawWeekAggregation, RawMonthAggregation } from "@/lib/session-utils/types";
-import { SessionDataParsingError } from "@/lib/session-utils/types"; // Corrected import
+import { SessionDataParsingError } from "@/lib/session-utils/types"; 
 import { parseLoginTime, parseSessionDurationToSeconds } from "@/lib/session-utils/parsers";
 import { aggregateSessionsByDay, aggregateSessionsByWeek, aggregateSessionsByMonth } from "@/lib/session-utils/aggregations";
 import { formatDate, formatDurationFromSeconds, formatDataSizeForDisplay } from "@/lib/session-utils/formatters";
@@ -22,39 +22,58 @@ import { formatDate, formatDurationFromSeconds, formatDataSizeForDisplay } from 
 
 type ActiveView = 'session' | 'daily' | 'weekly' | 'monthly' | null;
 
-// Helper function to parse the raw text data into SessionData objects
+// Helper function to parse the raw JSON text data into SessionData objects
 function parseRawTextToSessions(rawData: string): SessionData[] {
   if (!rawData || !rawData.trim()) return [];
   
-  const lines = rawData.split('\n').map(line => line.trim()).filter(line => line);
+  let parsedJson: any;
+  try {
+    parsedJson = JSON.parse(rawData);
+  } catch (error: any) {
+    throw new SessionDataParsingError(`Invalid JSON format: ${error.message}. Please ensure your input is a valid JSON array.`);
+  }
+
+  if (!Array.isArray(parsedJson)) {
+    throw new SessionDataParsingError('Input data must be a JSON array. e.g., [{"loginTime": "...", ...}]');
+  }
+
   const sessions: SessionData[] = [];
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const parts = line.split(',');
-    if (parts.length !== 4) {
-      throw new SessionDataParsingError(`Line ${i + 1}: Expected 4 values (loginTime,sessionTime,download,upload), got ${parts.length}. Line content: "${line}"`);
+  for (let i = 0; i < parsedJson.length; i++) {
+    const item = parsedJson[i];
+    if (typeof item !== 'object' || item === null) {
+      throw new SessionDataParsingError(`Item at index ${i} is not a valid object.`);
     }
-    const [loginTimeStr, sessionTimeStr, downloadStr, uploadStr] = parts.map(p => p.trim());
+
+    const { loginTime, sessionTime, download, upload } = item;
+
+    if (typeof loginTime !== 'string') {
+      throw new SessionDataParsingError(`Item at index ${i}: "loginTime" must be a string (e.g., "DD-MM-YYYY HH:MM:SS").`);
+    }
+    if (typeof sessionTime !== 'string') {
+      throw new SessionDataParsingError(`Item at index ${i}: "sessionTime" must be a string (e.g., "HH:MM:SS").`);
+    }
+    if (typeof download !== 'number' || isNaN(download) || download < 0) {
+      throw new SessionDataParsingError(`Item at index ${i}: "download" must be a non-negative number. Got: "${download}".`);
+    }
+    if (typeof upload !== 'number' || isNaN(upload) || upload < 0) {
+      throw new SessionDataParsingError(`Item at index ${i}: "upload" must be a non-negative number. Got: "${upload}".`);
+    }
+
+    // Validate date/time string formats using existing parsers
+    try {
+      parseLoginTime(loginTime);
+    } catch (e: any) {
+      throw new SessionDataParsingError(`Item at index ${i}: Invalid "loginTime" format for "${loginTime}". Expected "DD-MM-YYYY HH:MM:SS". Underlying error: ${e.message}`);
+    }
+    try {
+      parseSessionDurationToSeconds(sessionTime);
+    } catch (e: any) {
+      throw new SessionDataParsingError(`Item at index ${i}: Invalid "sessionTime" format for "${sessionTime}". Expected "HH:MM:SS". Underlying error: ${e.message}`);
+    }
     
-    // Validate download and upload before parsing dates
-    const download = parseFloat(downloadStr);
-    const upload = parseFloat(uploadStr);
-
-    if (isNaN(download) || download < 0) {
-      throw new SessionDataParsingError(`Line ${i + 1}: Invalid or negative download value "${downloadStr}".`);
-    }
-    if (isNaN(upload) || upload < 0) {
-      throw new SessionDataParsingError(`Line ${i + 1}: Invalid or negative upload value "${uploadStr}".`);
-    }
-
-    // parseLoginTime and parseSessionDurationToSeconds will throw SessionDataParsingError on failure
-    parseLoginTime(loginTimeStr); // Validate format
-    parseSessionDurationToSeconds(sessionTimeStr); // Validate format
-
     sessions.push({
-      loginTime: loginTimeStr,
-      sessionTime: sessionTimeStr,
+      loginTime,
+      sessionTime,
       download,
       upload,
     });
@@ -106,10 +125,13 @@ export default function SessionInsightsPage() {
 
     try {
       let currentParsedSessions = parsedSessions;
-      if (!currentParsedSessions) {
+      // Always try to parse if view changes or no parsed sessions yet.
+      // This ensures if raw data is edited and a view is re-clicked, it re-parses.
+      if (!currentParsedSessions || viewType) { 
         currentParsedSessions = parseRawTextToSessions(rawSessionData);
         setParsedSessions(currentParsedSessions);
       }
+
 
       if (viewType === 'session') {
         // Data is already parsed and set in parsedSessions state
@@ -127,7 +149,7 @@ export default function SessionInsightsPage() {
       console.error(`Error processing data for ${viewType} view:`, error);
       toast({
         variant: "destructive",
-        title: `Error Processing Data for ${viewType} view`,
+        title: `Error Processing Data for ${viewType || 'selected'} view`,
         description: error instanceof SessionDataParsingError ? error.message : "An unexpected error occurred.",
       });
       setActiveView(null); // Reset view on error
@@ -142,12 +164,28 @@ export default function SessionInsightsPage() {
       toast({ variant: "destructive", title: "No Data", description: "Please load session data first." });
       return;
     }
+     // Ensure data is parsed before sending to AI, as AI flows might expect structured data if modified in future
+    // Or, keep AI analysis based on raw string if flows are designed for that
+    // For now, sticking to rawSessionData string as per current AI flow design
+    // If AI needs parsed data, we'd parse here:
+    // try {
+    //   if (!parsedSessions) {
+    //     const sessions = parseRawTextToSessions(rawSessionData);
+    //     setParsedSessions(sessions); // Optionally set state if needed elsewhere
+    //   }
+    // } catch (error: any) {
+    //   toast({ variant: "destructive", title: "Data Parsing Failed for AI", description: error.message });
+    //   return;
+    // }
+
 
     setIsLoadingAi(true);
     setAnalysisResult(null);
     setMaintenanceSuggestion(null);
 
     try {
+      // The AI flow analyzeUsagePatterns expects a string of sessionData.
+      // If it were to expect structured data, we'd pass parsedSessions (after ensuring it's parsed).
       const usagePatterns = await analyzeUsagePatterns({ sessionData: rawSessionData });
       setAnalysisResult(usagePatterns);
 
@@ -194,29 +232,29 @@ export default function SessionInsightsPage() {
       case 'session':
         return parsedSessions && parsedSessions.length > 0 ? (
           <Card>
-            <CardHeader><CardTitle>Raw Sessions (JSON)</CardTitle></CardHeader>
+            <CardHeader><CardTitle>Raw Sessions (from JSON input)</CardTitle></CardHeader>
             <CardContent><pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-[400px]">{JSON.stringify(parsedSessions, null, 2)}</pre></CardContent>
           </Card>
-        ) : <p className="text-muted-foreground">No session data to display or parsing failed. Please load data.</p>;
+        ) : <p className="text-muted-foreground">No session data to display or parsing failed. Please load valid JSON data.</p>;
       case 'daily':
         return dailyAggregatedData && dailyAggregatedData.length > 0 ? (
           <Card>
-            <CardHeader><CardTitle>Daily Aggregated Data (JSON)</CardTitle></CardHeader>
-            <CardContent><pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-[400px]">{JSON.stringify(dailyAggregatedData.map(d => ({...d, date: formatDate(d.date), totalDurationSeconds: formatDurationFromSeconds(d.totalDurationSeconds, true)})), null, 2)}</pre></CardContent>
+            <CardHeader><CardTitle>Daily Aggregated Data</CardTitle></CardHeader>
+            <CardContent><pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-[400px]">{JSON.stringify(dailyAggregatedData.map(d => ({...d, date: formatDate(d.date), totalDurationFormatted: formatDurationFromSeconds(d.totalDurationSeconds, true), totalDownloadedMB: d.totalDownloadedMB.toFixed(2), totalUploadedMB: d.totalUploadedMB.toFixed(2) })), null, 2)}</pre></CardContent>
           </Card>
         ) : <p className="text-muted-foreground">No daily data to display. Process the data first.</p>;
       case 'weekly':
         return weeklyAggregatedData && weeklyAggregatedData.length > 0 ? (
           <Card>
-            <CardHeader><CardTitle>Weekly Aggregated Data (JSON)</CardTitle></CardHeader>
-            <CardContent><pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-[400px]">{JSON.stringify(weeklyAggregatedData.map(w => ({...w, startDate: formatDate(w.startDate), endDate: formatDate(w.endDate)})), null, 2)}</pre></CardContent>
+            <CardHeader><CardTitle>Weekly Aggregated Data</CardTitle></CardHeader>
+            <CardContent><pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-[400px]">{JSON.stringify(weeklyAggregatedData.map(w => ({...w, startDate: formatDate(w.startDate), endDate: formatDate(w.endDate), totalDurationFormatted: formatDurationFromSeconds(w.totalDurationSeconds, true), totalDownloadedMB: w.totalDownloadedMB.toFixed(2), totalUploadedMB: w.totalUploadedMB.toFixed(2)})), null, 2)}</pre></CardContent>
           </Card>
         ) : <p className="text-muted-foreground">No weekly data to display. Process the data first.</p>;
       case 'monthly':
         return monthlyAggregatedData && monthlyAggregatedData.length > 0 ? (
           <Card>
-            <CardHeader><CardTitle>Monthly Aggregated Data (JSON)</CardTitle></CardHeader>
-            <CardContent><pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-[400px]">{JSON.stringify(monthlyAggregatedData.map(m => ({...m, startDate: formatDate(m.startDate), endDate: formatDate(m.endDate)})), null, 2)}</pre></CardContent>
+            <CardHeader><CardTitle>Monthly Aggregated Data</CardTitle></CardHeader>
+            <CardContent><pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-[400px]">{JSON.stringify(monthlyAggregatedData.map(m => ({...m, startDate: formatDate(m.startDate), endDate: formatDate(m.endDate), totalDurationFormatted: formatDurationFromSeconds(m.totalDurationSeconds, true), totalDownloadedMB: m.totalDownloadedMB.toFixed(2), totalUploadedMB: m.totalUploadedMB.toFixed(2)})), null, 2)}</pre></CardContent>
           </Card>
         ) : <p className="text-muted-foreground">No monthly data to display. Process the data first.</p>;
       default:
@@ -292,3 +330,4 @@ export default function SessionInsightsPage() {
     </div>
   );
 }
+
