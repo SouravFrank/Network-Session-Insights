@@ -17,17 +17,60 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Loader2, Sparkles, List, CalendarDays, CalendarRange, Calendar as CalendarIconLucide, BarChart2, TableIcon, Info, FilterX } from "lucide-react"; // Renamed Calendar from lucide
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Loader2, Sparkles, List, CalendarDays, CalendarRange, Calendar as CalendarIconLucide, BarChart2, TableIcon, Info, FilterX } from "lucide-react";
 import type { SessionData, RawDayAggregation, RawWeekAggregation, RawMonthAggregation } from "@/lib/session-utils/types";
 import { SessionDataParsingError } from "@/lib/session-utils/types";
 import { parseLoginTime, parseSessionDurationToSeconds } from "@/lib/session-utils/parsers";
 import { aggregateSessionsByDay, aggregateSessionsByWeek, aggregateSessionsByMonth } from "@/lib/session-utils/aggregations";
 import { formatDate, formatDurationFromSeconds } from "@/lib/session-utils/formatters";
-import { startOfDay, endOfDay } from 'date-fns';
+import { 
+  startOfDay, endOfDay, subDays, 
+  startOfWeek, endOfWeek, subWeeks,
+  startOfMonth, endOfMonth, subMonths,
+  startOfYear, endOfYear, subYears
+} from 'date-fns';
 
 
 type ActiveView = 'session' | 'daily' | 'weekly' | 'monthly' | null;
 type DisplayFormat = 'table' | 'chart';
+
+interface DatePreset {
+  label: string;
+  getRange: () => { from: Date; to: Date };
+}
+
+const datePresets: DatePreset[] = [
+  { label: "Today", getRange: () => ({ from: startOfDay(new Date()), to: endOfDay(new Date()) }) },
+  { label: "Yesterday", getRange: () => {
+      const yesterday = subDays(new Date(), 1);
+      return { from: startOfDay(yesterday), to: endOfDay(yesterday) };
+    }
+  },
+  { label: "Last 7 Days", getRange: () => ({ from: startOfDay(subDays(new Date(), 6)), to: endOfDay(new Date()) }) },
+  { label: "This Week", getRange: () => ({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }) },
+  { label: "Last Week", getRange: () => {
+      const lastWeekStart = startOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 });
+      const lastWeekEnd = endOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 });
+      return { from: lastWeekStart, to: lastWeekEnd };
+    }
+  },
+  { label: "This Month", getRange: () => ({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }) },
+  { label: "Last Month", getRange: () => {
+      const lastMonthStart = startOfMonth(subMonths(new Date(), 1));
+      const lastMonthEnd = endOfMonth(subMonths(new Date(), 1));
+      return { from: lastMonthStart, to: lastMonthEnd };
+    }
+  },
+  { label: "This Year", getRange: () => ({ from: startOfYear(new Date()), to: endOfYear(new Date()) }) },
+  { label: "Last Year", getRange: () => {
+      const lastYearStart = startOfYear(subYears(new Date(), 1));
+      const lastYearEnd = endOfYear(subYears(new Date(), 1));
+      return { from: lastYearStart, to: lastYearEnd };
+    }
+  },
+];
+
 
 function parseRawTextToSessions(rawData: string): SessionData[] {
   if (!rawData || !rawData.trim()) return [];
@@ -121,8 +164,6 @@ export default function SessionInsightsPage() {
     setMaintenanceSuggestion(null);
     setActiveView(null); 
     setDisplayFormat('table');
-    //setDateFrom(undefined); // Optionally reset date filters on new data load
-    //setDateTo(undefined);
     toast({
         title: "Data Loaded",
         description: "Session data is ready. Select a view (Session, Daily, etc.) to process and display.",
@@ -167,7 +208,6 @@ export default function SessionInsightsPage() {
         const isBeforeTo = dateTo ? loginDate.getTime() <= endOfDay(dateTo).getTime() : true;
         return isAfterFrom && isBeforeTo;
       } catch (e) {
-        // This should ideally not happen if initial parsing was successful
         console.warn("Error parsing loginTime during filtering:", e, session.loginTime);
         return false; 
       }
@@ -182,7 +222,6 @@ export default function SessionInsightsPage() {
           } catch (e) { return 0; }
         });
         setFilteredSessionViewData(sortedSessions);
-        // Clear other aggregated data displays
         setDailyAggregatedData(null);
         setWeeklyAggregatedData(null);
         setMonthlyAggregatedData(null);
@@ -212,7 +251,6 @@ export default function SessionInsightsPage() {
         title: `Error Processing Data for ${viewType || 'selected'} view`,
         description: error instanceof SessionDataParsingError ? error.message : "An unexpected error occurred.",
       });
-      // Potentially clear view-specific data on error
       if (viewType === 'session') setFilteredSessionViewData(null);
       if (viewType === 'daily') setDailyAggregatedData(null);
       // ... etc.
@@ -221,18 +259,14 @@ export default function SessionInsightsPage() {
     }
   };
 
-  // Effect to re-process data when date filters change, if a view is active and data has been parsed
   React.useEffect(() => {
-    if (activeView && parsedSessions) { // Only re-process if a view is active and base data is available
+    if (activeView && parsedSessions) { 
       processAndSetView(activeView);
     }
-  }, [dateFrom, dateTo]); // `parsedSessions` is not needed here as `processAndSetView` uses it from state.
+  }, [dateFrom, dateTo]);
 
 
   const handleAiAnalysis = async () => {
-    // AI Analysis should use the rawSessionData, or a filtered version if desired.
-    // For now, it uses the full rawSessionData string.
-    // If filtering is desired for AI, rawSessionData would need to be filtered and re-serialized to JSON.
     if (!rawSessionData) {
       toast({ variant: "destructive", title: "No Data", description: "Please load session data first." });
       return;
@@ -278,7 +312,12 @@ export default function SessionInsightsPage() {
   const clearDateFilters = () => {
     setDateFrom(undefined);
     setDateTo(undefined);
-    // Re-processing will be triggered by the useEffect listening to dateFrom/dateTo
+  };
+
+  const applyDatePreset = (preset: DatePreset) => {
+    const { from, to } = preset.getRange();
+    setDateFrom(from);
+    setDateTo(to);
   };
 
   const renderViewContent = () => {
@@ -301,7 +340,6 @@ export default function SessionInsightsPage() {
             </CardContent>
         </Card>
     );
-
 
     switch (activeView) {
       case 'session':
@@ -389,11 +427,39 @@ export default function SessionInsightsPage() {
                         </Popover>
                       </div>
                       {(dateFrom || dateTo) && (
-                        <Button variant="ghost" size="sm" onClick={clearDateFilters} className="w-full text-xs" disabled={isLoadingView}>
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={clearDateFilters} 
+                            className="w-full text-xs text-destructive border-destructive hover:bg-destructive/5 hover:text-destructive" 
+                            disabled={isLoadingView}
+                        >
                           <FilterX className="mr-1 h-3 w-3" /> Clear Date Filters
                         </Button>
                       )}
                     </div>
+                    
+                    <div className="space-y-2 pt-2">
+                        <h4 className="text-sm font-medium text-muted-foreground">Date Presets:</h4>
+                        <ScrollArea className="w-full whitespace-nowrap rounded-md">
+                            <div className="flex space-x-2 pb-2">
+                                {datePresets.map((preset) => (
+                                <Button
+                                    key={preset.label}
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => applyDatePreset(preset)}
+                                    disabled={isLoadingView || !rawSessionData}
+                                    className="text-xs"
+                                >
+                                    {preset.label}
+                                </Button>
+                                ))}
+                            </div>
+                            <ScrollBar orientation="horizontal" />
+                        </ScrollArea>
+                    </div>
+
 
                     {activeView && (
                         <div className="pt-2">
@@ -443,7 +509,7 @@ export default function SessionInsightsPage() {
             {!isLoadingAi && maintenanceSuggestion && (
               <MaintenanceSuggestionDisplay data={maintenanceSuggestion} />
             )}
-            <AnomalyAlertDisplay /> {/* This component is currently static */}
+            <AnomalyAlertDisplay /> 
           </div>
         </div>
       </main>
