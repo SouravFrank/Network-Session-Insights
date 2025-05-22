@@ -7,38 +7,139 @@ import { DataInputForm } from "@/components/session-insights/data-input-form";
 import { UsagePatternsDisplay } from "@/components/session-insights/usage-patterns-display";
 import { MaintenanceSuggestionDisplay } from "@/components/session-insights/maintenance-suggestion-display";
 import { AnomalyAlertDisplay } from "@/components/session-insights/anomaly-alert-display";
-import { SessionDataGraph } from "@/components/session-insights/session-data-graph";
 import { analyzeUsagePatterns, type AnalyzeUsagePatternsOutput } from "@/ai/flows/analyze-usage-patterns";
 import { suggestMaintenanceSchedule, type SuggestMaintenanceScheduleOutput } from "@/ai/flows/suggest-maintenance-schedule";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Loader2, Sparkles } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Loader2, Sparkles, List, CalendarDays, CalendarRange, Calendar } from "lucide-react";
+import type { SessionData, RawDayAggregation, RawWeekAggregation, RawMonthAggregation } from "@/lib/session-utils/types";
+import { SessionDataParsingError } from "@/lib/session-utils/types"; // Corrected import
+import { parseLoginTime, parseSessionDurationToSeconds } from "@/lib/session-utils/parsers";
+import { aggregateSessionsByDay, aggregateSessionsByWeek, aggregateSessionsByMonth } from "@/lib/session-utils/aggregations";
+import { formatDate, formatDurationFromSeconds, formatDataSizeForDisplay } from "@/lib/session-utils/formatters";
+
+
+type ActiveView = 'session' | 'daily' | 'weekly' | 'monthly' | null;
+
+// Helper function to parse the raw text data into SessionData objects
+function parseRawTextToSessions(rawData: string): SessionData[] {
+  if (!rawData || !rawData.trim()) return [];
+  
+  const lines = rawData.split('\n').map(line => line.trim()).filter(line => line);
+  const sessions: SessionData[] = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const parts = line.split(',');
+    if (parts.length !== 4) {
+      throw new SessionDataParsingError(`Line ${i + 1}: Expected 4 values (loginTime,sessionTime,download,upload), got ${parts.length}. Line content: "${line}"`);
+    }
+    const [loginTimeStr, sessionTimeStr, downloadStr, uploadStr] = parts.map(p => p.trim());
+    
+    // Validate download and upload before parsing dates
+    const download = parseFloat(downloadStr);
+    const upload = parseFloat(uploadStr);
+
+    if (isNaN(download) || download < 0) {
+      throw new SessionDataParsingError(`Line ${i + 1}: Invalid or negative download value "${downloadStr}".`);
+    }
+    if (isNaN(upload) || upload < 0) {
+      throw new SessionDataParsingError(`Line ${i + 1}: Invalid or negative upload value "${uploadStr}".`);
+    }
+
+    // parseLoginTime and parseSessionDurationToSeconds will throw SessionDataParsingError on failure
+    parseLoginTime(loginTimeStr); // Validate format
+    parseSessionDurationToSeconds(sessionTimeStr); // Validate format
+
+    sessions.push({
+      loginTime: loginTimeStr,
+      sessionTime: sessionTimeStr,
+      download,
+      upload,
+    });
+  }
+  return sessions;
+}
+
 
 export default function SessionInsightsPage() {
   const [rawSessionData, setRawSessionData] = React.useState<string | null>(null);
+  const [parsedSessions, setParsedSessions] = React.useState<SessionData[] | null>(null);
+  
+  const [dailyAggregatedData, setDailyAggregatedData] = React.useState<RawDayAggregation[] | null>(null);
+  const [weeklyAggregatedData, setWeeklyAggregatedData] = React.useState<RawWeekAggregation[] | null>(null);
+  const [monthlyAggregatedData, setMonthlyAggregatedData] = React.useState<RawMonthAggregation[] | null>(null);
+  
+  const [activeView, setActiveView] = React.useState<ActiveView>(null);
+  const [isLoadingView, setIsLoadingView] = React.useState(false);
+
   const [analysisResult, setAnalysisResult] = React.useState<AnalyzeUsagePatternsOutput | null>(null);
   const [maintenanceSuggestion, setMaintenanceSuggestion] = React.useState<SuggestMaintenanceScheduleOutput | null>(null);
   const [isLoadingAi, setIsLoadingAi] = React.useState(false);
   const { toast } = useToast();
 
-  const handleVisualizeDataSubmit = (sessionData: string) => {
-    setRawSessionData(sessionData);
-    // Clear previous AI results when new data is visualized
+  const handleDataLoadSubmit = (sessionDataText: string) => {
+    setRawSessionData(sessionDataText);
+    // Clear all derived data
+    setParsedSessions(null);
+    setDailyAggregatedData(null);
+    setWeeklyAggregatedData(null);
+    setMonthlyAggregatedData(null);
     setAnalysisResult(null);
     setMaintenanceSuggestion(null);
+    setActiveView(null); // Reset view
      toast({
         title: "Data Loaded",
-        description: "Session data is now ready for visualization.",
+        description: "Session data is ready. Select a view (Session, Daily, etc.) to process and display.",
       });
+  };
+
+  const processAndSetView = async (viewType: ActiveView) => {
+    if (!rawSessionData) {
+      toast({ variant: "destructive", title: "No Data", description: "Please load session data first." });
+      return;
+    }
+    
+    setIsLoadingView(true);
+    setActiveView(viewType);
+
+    try {
+      let currentParsedSessions = parsedSessions;
+      if (!currentParsedSessions) {
+        currentParsedSessions = parseRawTextToSessions(rawSessionData);
+        setParsedSessions(currentParsedSessions);
+      }
+
+      if (viewType === 'session') {
+        // Data is already parsed and set in parsedSessions state
+      } else if (viewType === 'daily') {
+        const dailyData = aggregateSessionsByDay(currentParsedSessions);
+        setDailyAggregatedData(dailyData);
+      } else if (viewType === 'weekly') {
+        const weeklyData = aggregateSessionsByWeek(currentParsedSessions);
+        setWeeklyAggregatedData(weeklyData);
+      } else if (viewType === 'monthly') {
+        const monthlyData = aggregateSessionsByMonth(currentParsedSessions);
+        setMonthlyAggregatedData(monthlyData);
+      }
+    } catch (error: any) {
+      console.error(`Error processing data for ${viewType} view:`, error);
+      toast({
+        variant: "destructive",
+        title: `Error Processing Data for ${viewType} view`,
+        description: error instanceof SessionDataParsingError ? error.message : "An unexpected error occurred.",
+      });
+      setActiveView(null); // Reset view on error
+      setParsedSessions(null); // Clear parsed data if parsing failed
+    } finally {
+      setIsLoadingView(false);
+    }
   };
 
   const handleAiAnalysis = async () => {
     if (!rawSessionData) {
-      toast({
-        variant: "destructive",
-        title: "No Data",
-        description: "Please input session data first.",
-      });
+      toast({ variant: "destructive", title: "No Data", description: "Please load session data first." });
       return;
     }
 
@@ -47,11 +148,9 @@ export default function SessionInsightsPage() {
     setMaintenanceSuggestion(null);
 
     try {
-      // Step 1: Analyze Usage Patterns
       const usagePatterns = await analyzeUsagePatterns({ sessionData: rawSessionData });
       setAnalysisResult(usagePatterns);
 
-      // Step 2: Suggest Maintenance Schedule
       const currentTime = new Date().toISOString();
       const scheduleSuggestion = await suggestMaintenanceSchedule({
         usagePatterns: `Peak Hours: ${usagePatterns.peakHours}, Quiet Hours: ${usagePatterns.quietHours}, Trends: ${usagePatterns.overallTrends}`,
@@ -81,6 +180,49 @@ export default function SessionInsightsPage() {
     setClientCurrentTime(new Date().toLocaleTimeString());
   }, []);
 
+  const renderViewContent = () => {
+    if (isLoadingView) {
+      return (
+        <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg min-h-[200px]">
+          <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
+          <p className="text-lg text-muted-foreground">Loading view data...</p>
+        </div>
+      );
+    }
+
+    switch (activeView) {
+      case 'session':
+        return parsedSessions && parsedSessions.length > 0 ? (
+          <Card>
+            <CardHeader><CardTitle>Raw Sessions (JSON)</CardTitle></CardHeader>
+            <CardContent><pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-[400px]">{JSON.stringify(parsedSessions, null, 2)}</pre></CardContent>
+          </Card>
+        ) : <p className="text-muted-foreground">No session data to display or parsing failed. Please load data.</p>;
+      case 'daily':
+        return dailyAggregatedData && dailyAggregatedData.length > 0 ? (
+          <Card>
+            <CardHeader><CardTitle>Daily Aggregated Data (JSON)</CardTitle></CardHeader>
+            <CardContent><pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-[400px]">{JSON.stringify(dailyAggregatedData.map(d => ({...d, date: formatDate(d.date), totalDurationSeconds: formatDurationFromSeconds(d.totalDurationSeconds, true)})), null, 2)}</pre></CardContent>
+          </Card>
+        ) : <p className="text-muted-foreground">No daily data to display. Process the data first.</p>;
+      case 'weekly':
+        return weeklyAggregatedData && weeklyAggregatedData.length > 0 ? (
+          <Card>
+            <CardHeader><CardTitle>Weekly Aggregated Data (JSON)</CardTitle></CardHeader>
+            <CardContent><pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-[400px]">{JSON.stringify(weeklyAggregatedData.map(w => ({...w, startDate: formatDate(w.startDate), endDate: formatDate(w.endDate)})), null, 2)}</pre></CardContent>
+          </Card>
+        ) : <p className="text-muted-foreground">No weekly data to display. Process the data first.</p>;
+      case 'monthly':
+        return monthlyAggregatedData && monthlyAggregatedData.length > 0 ? (
+          <Card>
+            <CardHeader><CardTitle>Monthly Aggregated Data (JSON)</CardTitle></CardHeader>
+            <CardContent><pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-[400px]">{JSON.stringify(monthlyAggregatedData.map(m => ({...m, startDate: formatDate(m.startDate), endDate: formatDate(m.endDate)})), null, 2)}</pre></CardContent>
+          </Card>
+        ) : <p className="text-muted-foreground">No monthly data to display. Process the data first.</p>;
+      default:
+        return rawSessionData ? <p className="text-muted-foreground text-center py-4">Select a view (Session, Daily, Weekly, Monthly) to see processed data.</p> : <p className="text-muted-foreground text-center py-4">Please load session data using the form above.</p>;
+    }
+  };
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -88,33 +230,45 @@ export default function SessionInsightsPage() {
       <main className="flex-grow container mx-auto px-4 md:px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-1 space-y-6">
-            <DataInputForm onSubmit={handleVisualizeDataSubmit} isLoading={false} /> {/* isLoading for form can be separate if needed */}
+            <DataInputForm onSubmit={handleDataLoadSubmit} isLoading={isLoadingView || isLoadingAi} />
+            
             {rawSessionData && (
-                 <Button 
-                    onClick={handleAiAnalysis} 
-                    disabled={isLoadingAi || !rawSessionData}
-                    className="w-full"
-                  >
-                  {isLoadingAi ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Analyzing with AI...
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="mr-2 h-4 w-4" />
-                      Analyze with AI
-                    </>
-                  )}
-                </Button>
+              <Card className="shadow-lg">
+                <CardHeader>
+                  <CardTitle>Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                   <div className="grid grid-cols-2 gap-2 mb-4">
+                      <Button onClick={() => processAndSetView('session')} disabled={isLoadingView || !rawSessionData} variant={activeView === 'session' ? 'default' : 'outline'}><List className="mr-2 h-4 w-4" />Sessions</Button>
+                      <Button onClick={() => processAndSetView('daily')} disabled={isLoadingView || !rawSessionData} variant={activeView === 'daily' ? 'default' : 'outline'}><CalendarDays className="mr-2 h-4 w-4" />Daily</Button>
+                      <Button onClick={() => processAndSetView('weekly')} disabled={isLoadingView || !rawSessionData} variant={activeView === 'weekly' ? 'default' : 'outline'}><CalendarRange className="mr-2 h-4 w-4" />Weekly</Button>
+                      <Button onClick={() => processAndSetView('monthly')} disabled={isLoadingView || !rawSessionData} variant={activeView === 'monthly' ? 'default' : 'outline'}><Calendar className="mr-2 h-4 w-4" />Monthly</Button>
+                    </div>
+                  <Button 
+                      onClick={handleAiAnalysis} 
+                      disabled={isLoadingAi || !rawSessionData}
+                      className="w-full"
+                    >
+                    {isLoadingAi ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Analyzing with AI...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-2 h-4 w-4" />
+                        Analyze with AI
+                      </>
+                    )}
+                  </Button>
+                </CardContent>
+              </Card>
             )}
           </div>
           <div className="lg:col-span-2 space-y-8">
-            {rawSessionData && (
-              <SessionDataGraph rawData={rawSessionData} />
-            )}
+            {renderViewContent()}
             
-            {isLoadingAi && (
+            {isLoadingAi && !analysisResult && !maintenanceSuggestion && (
               <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg min-h-[300px]">
                 <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
                 <p className="text-lg text-muted-foreground">AI is analyzing your data... Please wait.</p>

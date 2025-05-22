@@ -9,7 +9,7 @@ import { Loader2, FileText } from "lucide-react";
 
 interface DataInputFormProps {
   onSubmit: (sessionData: string) => void;
-  isLoading: boolean; // This can be used if visualization itself becomes slow, or for other loading states
+  isLoading: boolean;
 }
 
 export function DataInputForm({ onSubmit, isLoading }: DataInputFormProps) {
@@ -28,13 +28,15 @@ export function DataInputForm({ onSubmit, isLoading }: DataInputFormProps) {
           <CardTitle>Input Session Data</CardTitle>
         </div>
         <CardDescription>
-          Paste your raw session data below (e.g., `timestamp,value` per line).
+          Paste your raw session data below. Each line should be in the format:
+          <br />
+          `DD-MM-YYYY HH:MM:SS,HH:MM:SS,download_mb,upload_mb`
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Textarea
-            placeholder="Example:&#10;2024-07-31T10:00:00Z,50&#10;2024-07-31T11:00:00Z,60&#10;2024-07-31T12:00:00Z,55"
+            placeholder="Example:&#10;01-08-2024 10:00:00,01:30:00,150.5,75.2&#10;01-08-2024 14:00:00,00:45:00,80.0,40.3"
             value={sessionData}
             onChange={(e) => setSessionData(e.target.value)}
             rows={10}
@@ -48,7 +50,7 @@ export function DataInputForm({ onSubmit, isLoading }: DataInputFormProps) {
                 Processing...
               </>
             ) : (
-              "Visualize Data"
+              "Load Data"
             )}
           </Button>
         </form>
