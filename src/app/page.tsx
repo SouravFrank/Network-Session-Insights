@@ -22,7 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area"; // Only ScrollArea needed, not ScrollBar explicitly for presets
 import { Loader2, Sparkles, List, CalendarDays, CalendarRange, Calendar as CalendarIconLucide, BarChart2, TableIcon, Info, FilterX } from "lucide-react";
 import type { SessionData, RawDayAggregation, RawWeekAggregation, RawMonthAggregation } from "@/lib/session-utils/types";
 import { SessionDataParsingError } from "@/lib/session-utils/types";
@@ -476,8 +476,8 @@ export default function SessionInsightsPage() {
                     {currentDatePresets.length > 0 && (
                         <div className="space-y-2 pt-2">
                             <h4 className="text-sm font-medium text-muted-foreground">Date Presets:</h4>
-                            <ScrollArea className="w-full whitespace-nowrap rounded-md">
-                                <div className="flex space-x-2 pb-2">
+                            <ScrollArea className="w-full rounded-md max-h-48"> {/* max-h-48 for vertical scroll with grid */}
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-1"> {/* Grid layout */}
                                     {currentDatePresets.map((preset) => (
                                     <Button
                                         key={preset.label}
@@ -491,7 +491,6 @@ export default function SessionInsightsPage() {
                                     </Button>
                                     ))}
                                 </div>
-                                <ScrollBar orientation="horizontal" />
                             </ScrollArea>
                         </div>
                     )}
@@ -550,14 +549,12 @@ export default function SessionInsightsPage() {
               </div>
             )}
 
-            {!isLoadingAi && analysisResult && (
-              <UsagePatternsDisplay data={analysisResult} />
-            )}
-            {!isLoadingAi && maintenanceSuggestion && (
-              <MaintenanceSuggestionDisplay data={maintenanceSuggestion} />
-            )}
             {!isLoadingAi && (analysisResult || maintenanceSuggestion) && (
-                 <AnomalyAlertDisplay /> 
+              <>
+                {analysisResult && <UsagePatternsDisplay data={analysisResult} />}
+                {maintenanceSuggestion && <MaintenanceSuggestionDisplay data={maintenanceSuggestion} />}
+                <AnomalyAlertDisplay /> 
+              </>
             )}
           </div>
         </div>
