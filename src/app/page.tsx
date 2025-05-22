@@ -7,6 +7,7 @@ import { DataInputForm } from "@/components/session-insights/data-input-form";
 import { UsagePatternsDisplay } from "@/components/session-insights/usage-patterns-display";
 import { MaintenanceSuggestionDisplay } from "@/components/session-insights/maintenance-suggestion-display";
 import { AnomalyAlertDisplay } from "@/components/session-insights/anomaly-alert-display";
+import { SessionDataTable } from "@/components/session-insights/session-data-table"; // New Import
 import { analyzeUsagePatterns, type AnalyzeUsagePatternsOutput } from "@/ai/flows/analyze-usage-patterns";
 import { suggestMaintenanceSchedule, type SuggestMaintenanceScheduleOutput } from "@/ai/flows/suggest-maintenance-schedule";
 import { useToast } from "@/hooks/use-toast";
@@ -17,7 +18,7 @@ import type { SessionData, RawDayAggregation, RawWeekAggregation, RawMonthAggreg
 import { SessionDataParsingError } from "@/lib/session-utils/types"; 
 import { parseLoginTime, parseSessionDurationToSeconds } from "@/lib/session-utils/parsers";
 import { aggregateSessionsByDay, aggregateSessionsByWeek, aggregateSessionsByMonth } from "@/lib/session-utils/aggregations";
-import { formatDate, formatDurationFromSeconds, formatDataSizeForDisplay } from "@/lib/session-utils/formatters";
+import { formatDate, formatDurationFromSeconds } from "@/lib/session-utils/formatters";
 
 
 type ActiveView = 'session' | 'daily' | 'weekly' | 'monthly' | null;
@@ -125,25 +126,32 @@ export default function SessionInsightsPage() {
 
     try {
       let currentParsedSessions = parsedSessions;
-      // Always try to parse if view changes or no parsed sessions yet.
-      // This ensures if raw data is edited and a view is re-clicked, it re-parses.
-      if (!currentParsedSessions || viewType) { 
+      if (!currentParsedSessions) { 
         currentParsedSessions = parseRawTextToSessions(rawSessionData);
         setParsedSessions(currentParsedSessions);
       }
 
-
       if (viewType === 'session') {
-        // Data is already parsed and set in parsedSessions state
+        // Sort sessions by loginTime descending (newest first)
+        const sortedSessions = [...currentParsedSessions].sort((a, b) => {
+          try {
+            return parseLoginTime(b.loginTime).getTime() - parseLoginTime(a.loginTime).getTime();
+          } catch (e) {
+            // Should not happen if parsing during load was successful
+            console.error("Error parsing loginTime during sort:", e);
+            return 0;
+          }
+        });
+        setParsedSessions(sortedSessions);
       } else if (viewType === 'daily') {
         const dailyData = aggregateSessionsByDay(currentParsedSessions);
-        setDailyAggregatedData(dailyData);
+        setDailyAggregatedData(dailyData); // Already sorted by utility
       } else if (viewType === 'weekly') {
         const weeklyData = aggregateSessionsByWeek(currentParsedSessions);
-        setWeeklyAggregatedData(weeklyData);
+        setWeeklyAggregatedData(weeklyData); // Already sorted by utility
       } else if (viewType === 'monthly') {
         const monthlyData = aggregateSessionsByMonth(currentParsedSessions);
-        setMonthlyAggregatedData(monthlyData);
+        setMonthlyAggregatedData(monthlyData); // Already sorted by utility
       }
     } catch (error: any) {
       console.error(`Error processing data for ${viewType} view:`, error);
@@ -164,28 +172,12 @@ export default function SessionInsightsPage() {
       toast({ variant: "destructive", title: "No Data", description: "Please load session data first." });
       return;
     }
-     // Ensure data is parsed before sending to AI, as AI flows might expect structured data if modified in future
-    // Or, keep AI analysis based on raw string if flows are designed for that
-    // For now, sticking to rawSessionData string as per current AI flow design
-    // If AI needs parsed data, we'd parse here:
-    // try {
-    //   if (!parsedSessions) {
-    //     const sessions = parseRawTextToSessions(rawSessionData);
-    //     setParsedSessions(sessions); // Optionally set state if needed elsewhere
-    //   }
-    // } catch (error: any) {
-    //   toast({ variant: "destructive", title: "Data Parsing Failed for AI", description: error.message });
-    //   return;
-    // }
-
 
     setIsLoadingAi(true);
     setAnalysisResult(null);
     setMaintenanceSuggestion(null);
 
     try {
-      // The AI flow analyzeUsagePatterns expects a string of sessionData.
-      // If it were to expect structured data, we'd pass parsedSessions (after ensuring it's parsed).
       const usagePatterns = await analyzeUsagePatterns({ sessionData: rawSessionData });
       setAnalysisResult(usagePatterns);
 
@@ -231,10 +223,7 @@ export default function SessionInsightsPage() {
     switch (activeView) {
       case 'session':
         return parsedSessions && parsedSessions.length > 0 ? (
-          <Card>
-            <CardHeader><CardTitle>Raw Sessions (from JSON input)</CardTitle></CardHeader>
-            <CardContent><pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-[400px]">{JSON.stringify(parsedSessions, null, 2)}</pre></CardContent>
-          </Card>
+          <SessionDataTable sessions={parsedSessions} />
         ) : <p className="text-muted-foreground">No session data to display or parsing failed. Please load valid JSON data.</p>;
       case 'daily':
         return dailyAggregatedData && dailyAggregatedData.length > 0 ? (
@@ -319,7 +308,7 @@ export default function SessionInsightsPage() {
             {!isLoadingAi && maintenanceSuggestion && (
               <MaintenanceSuggestionDisplay data={maintenanceSuggestion} />
             )}
-            <AnomalyAlertDisplay /> {/* This is currently static */}
+            <AnomalyAlertDisplay />
           </div>
         </div>
       </main>
