@@ -8,6 +8,7 @@ import { UsagePatternsDisplay } from "@/components/session-insights/usage-patter
 import { MaintenanceSuggestionDisplay } from "@/components/session-insights/maintenance-suggestion-display";
 import { AnomalyAlertDisplay } from "@/components/session-insights/anomaly-alert-display";
 import { SessionDataTable } from "@/components/session-insights/session-data-table";
+import { DailyAggregationTable } from "@/components/session-insights/tables/DailyAggregationTable"; // New Import
 import { SessionTimelineChart } from "@/components/session-insights/charts/SessionTimelineChart";
 import { DailyAggregationChart } from "@/components/session-insights/charts/DailyAggregationChart";
 import { WeeklyAggregationChart } from "@/components/session-insights/charts/WeeklyAggregationChart";
@@ -400,10 +401,7 @@ export default function SessionInsightsPage() {
       case 'daily':
         if (!dailyAggregatedData || dailyAggregatedData.length === 0) return noDataMessage;
         return displayFormat === 'table' ? (
-          <Card>
-            <CardHeader><CardTitle>Daily Aggregated Data</CardTitle></CardHeader>
-            <CardContent><pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-[400px]">{JSON.stringify(dailyAggregatedData.map(d => ({...d, date: formatDate(d.date), totalDurationFormatted: formatDurationFromSeconds(d.totalDurationSeconds, true), totalDownloadedMB: d.totalDownloadedMB.toFixed(2), totalUploadedMB: d.totalUploadedMB.toFixed(2) })), null, 2)}</pre></CardContent>
-          </Card>
+          <DailyAggregationTable data={dailyAggregatedData} />
         ) : <DailyAggregationChart data={dailyAggregatedData} />;
       case 'weekly':
         if (!weeklyAggregatedData || weeklyAggregatedData.length === 0) return noDataMessage;
