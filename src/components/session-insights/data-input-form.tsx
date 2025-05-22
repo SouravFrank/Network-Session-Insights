@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -8,7 +9,7 @@ import { Loader2, FileText } from "lucide-react";
 
 interface DataInputFormProps {
   onSubmit: (sessionData: string) => void;
-  isLoading: boolean;
+  isLoading: boolean; // This can be used if visualization itself becomes slow, or for other loading states
 }
 
 export function DataInputForm({ onSubmit, isLoading }: DataInputFormProps) {
@@ -27,13 +28,13 @@ export function DataInputForm({ onSubmit, isLoading }: DataInputFormProps) {
           <CardTitle>Input Session Data</CardTitle>
         </div>
         <CardDescription>
-          Paste your raw session data below to begin analysis.
+          Paste your raw session data below (e.g., `timestamp,value` per line).
         </CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
           <Textarea
-            placeholder="Enter raw session data here (e.g., logs, usage reports)..."
+            placeholder="Example:&#10;2024-07-31T10:00:00Z,50&#10;2024-07-31T11:00:00Z,60&#10;2024-07-31T12:00:00Z,55"
             value={sessionData}
             onChange={(e) => setSessionData(e.target.value)}
             rows={10}
@@ -44,10 +45,10 @@ export function DataInputForm({ onSubmit, isLoading }: DataInputFormProps) {
             {isLoading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Analyzing...
+                Processing...
               </>
             ) : (
-              "Analyze Data"
+              "Visualize Data"
             )}
           </Button>
         </form>

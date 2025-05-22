@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -6,30 +7,51 @@ import { DataInputForm } from "@/components/session-insights/data-input-form";
 import { UsagePatternsDisplay } from "@/components/session-insights/usage-patterns-display";
 import { MaintenanceSuggestionDisplay } from "@/components/session-insights/maintenance-suggestion-display";
 import { AnomalyAlertDisplay } from "@/components/session-insights/anomaly-alert-display";
+import { SessionDataGraph } from "@/components/session-insights/session-data-graph";
 import { analyzeUsagePatterns, type AnalyzeUsagePatternsOutput } from "@/ai/flows/analyze-usage-patterns";
 import { suggestMaintenanceSchedule, type SuggestMaintenanceScheduleOutput } from "@/ai/flows/suggest-maintenance-schedule";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Loader2, Sparkles } from "lucide-react";
 
 export default function SessionInsightsPage() {
+  const [rawSessionData, setRawSessionData] = React.useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = React.useState<AnalyzeUsagePatternsOutput | null>(null);
   const [maintenanceSuggestion, setMaintenanceSuggestion] = React.useState<SuggestMaintenanceScheduleOutput | null>(null);
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [isLoadingAi, setIsLoadingAi] = React.useState(false);
   const { toast } = useToast();
 
-  const handleDataSubmit = async (sessionData: string) => {
-    setIsLoading(true);
+  const handleVisualizeDataSubmit = (sessionData: string) => {
+    setRawSessionData(sessionData);
+    // Clear previous AI results when new data is visualized
+    setAnalysisResult(null);
+    setMaintenanceSuggestion(null);
+     toast({
+        title: "Data Loaded",
+        description: "Session data is now ready for visualization.",
+      });
+  };
+
+  const handleAiAnalysis = async () => {
+    if (!rawSessionData) {
+      toast({
+        variant: "destructive",
+        title: "No Data",
+        description: "Please input session data first.",
+      });
+      return;
+    }
+
+    setIsLoadingAi(true);
     setAnalysisResult(null);
     setMaintenanceSuggestion(null);
 
     try {
       // Step 1: Analyze Usage Patterns
-      const usagePatterns = await analyzeUsagePatterns({ sessionData });
+      const usagePatterns = await analyzeUsagePatterns({ sessionData: rawSessionData });
       setAnalysisResult(usagePatterns);
 
       // Step 2: Suggest Maintenance Schedule
-      // Ensure currentTime is generated on the server or in a way that avoids hydration mismatch if critical.
-      // For this AI flow, sending a string representation from client is fine.
       const currentTime = new Date().toISOString();
       const scheduleSuggestion = await suggestMaintenanceSchedule({
         usagePatterns: `Peak Hours: ${usagePatterns.peakHours}, Quiet Hours: ${usagePatterns.quietHours}, Trends: ${usagePatterns.overallTrends}`,
@@ -38,7 +60,7 @@ export default function SessionInsightsPage() {
       setMaintenanceSuggestion(scheduleSuggestion);
 
       toast({
-        title: "Analysis Complete",
+        title: "AI Analysis Complete",
         description: "Session data analyzed and maintenance schedule suggested.",
       });
 
@@ -46,16 +68,14 @@ export default function SessionInsightsPage() {
       console.error("AI Analysis Error:", error);
       toast({
         variant: "destructive",
-        title: "Analysis Failed",
+        title: "AI Analysis Failed",
         description: error instanceof Error ? error.message : "An unexpected error occurred during AI analysis.",
       });
     } finally {
-      setIsLoading(false);
+      setIsLoadingAi(false);
     }
   };
   
-  // Current time for suggestion - ensure this doesn't cause hydration issues if rendered server-side initially
-  // Since it's only used after client-side interaction (form submit), it should be fine.
   const [clientCurrentTime, setClientCurrentTime] = React.useState<string | null>(null);
   React.useEffect(() => {
     setClientCurrentTime(new Date().toLocaleTimeString());
@@ -67,23 +87,47 @@ export default function SessionInsightsPage() {
       <AppHeader />
       <main className="flex-grow container mx-auto px-4 md:px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-1">
-            <DataInputForm onSubmit={handleDataSubmit} isLoading={isLoading} />
+          <div className="lg:col-span-1 space-y-6">
+            <DataInputForm onSubmit={handleVisualizeDataSubmit} isLoading={false} /> {/* isLoading for form can be separate if needed */}
+            {rawSessionData && (
+                 <Button 
+                    onClick={handleAiAnalysis} 
+                    disabled={isLoadingAi || !rawSessionData}
+                    className="w-full"
+                  >
+                  {isLoadingAi ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Analyzing with AI...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      Analyze with AI
+                    </>
+                  )}
+                </Button>
+            )}
           </div>
           <div className="lg:col-span-2 space-y-8">
-            {isLoading && !analysisResult && !maintenanceSuggestion && (
+            {rawSessionData && (
+              <SessionDataGraph rawData={rawSessionData} />
+            )}
+            
+            {isLoadingAi && (
               <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg min-h-[300px]">
                 <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
-                <p className="text-lg text-muted-foreground">Analyzing your data... Please wait.</p>
+                <p className="text-lg text-muted-foreground">AI is analyzing your data... Please wait.</p>
               </div>
             )}
-            {analysisResult && (
+
+            {!isLoadingAi && analysisResult && (
               <UsagePatternsDisplay data={analysisResult} />
             )}
-            {maintenanceSuggestion && (
+            {!isLoadingAi && maintenanceSuggestion && (
               <MaintenanceSuggestionDisplay data={maintenanceSuggestion} />
             )}
-            <AnomalyAlertDisplay />
+            <AnomalyAlertDisplay /> {/* This is currently static */}
           </div>
         </div>
       </main>
