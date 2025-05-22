@@ -8,25 +8,27 @@ import { UsagePatternsDisplay } from "@/components/session-insights/usage-patter
 import { MaintenanceSuggestionDisplay } from "@/components/session-insights/maintenance-suggestion-display";
 import { AnomalyAlertDisplay } from "@/components/session-insights/anomaly-alert-display";
 import { SessionDataTable } from "@/components/session-insights/session-data-table";
-import { SessionTimelineChart } from "@/components/session-insights/charts/SessionTimelineChart"; // New Chart
+import { SessionTimelineChart } from "@/components/session-insights/charts/SessionTimelineChart";
 import { analyzeUsagePatterns, type AnalyzeUsagePatternsOutput } from "@/ai/flows/analyze-usage-patterns";
 import { suggestMaintenanceSchedule, type SuggestMaintenanceScheduleOutput } from "@/ai/flows/suggest-maintenance-schedule";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"; // For Table/Chart toggle
-import { Loader2, Sparkles, List, CalendarDays, CalendarRange, Calendar, BarChart2, TableIcon, Info } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Loader2, Sparkles, List, CalendarDays, CalendarRange, Calendar as CalendarIconLucide, BarChart2, TableIcon, Info, FilterX } from "lucide-react"; // Renamed Calendar from lucide
 import type { SessionData, RawDayAggregation, RawWeekAggregation, RawMonthAggregation } from "@/lib/session-utils/types";
-import { SessionDataParsingError } from "@/lib/session-utils/types"; 
+import { SessionDataParsingError } from "@/lib/session-utils/types";
 import { parseLoginTime, parseSessionDurationToSeconds } from "@/lib/session-utils/parsers";
 import { aggregateSessionsByDay, aggregateSessionsByWeek, aggregateSessionsByMonth } from "@/lib/session-utils/aggregations";
 import { formatDate, formatDurationFromSeconds } from "@/lib/session-utils/formatters";
+import { startOfDay, endOfDay } from 'date-fns';
 
 
 type ActiveView = 'session' | 'daily' | 'weekly' | 'monthly' | null;
 type DisplayFormat = 'table' | 'chart';
 
-// Helper function to parse the raw JSON text data into SessionData objects
 function parseRawTextToSessions(rawData: string): SessionData[] {
   if (!rawData || !rawData.trim()) return [];
   
@@ -87,8 +89,10 @@ function parseRawTextToSessions(rawData: string): SessionData[] {
 
 export default function SessionInsightsPage() {
   const [rawSessionData, setRawSessionData] = React.useState<string | null>(null);
-  const [parsedSessions, setParsedSessions] = React.useState<SessionData[] | null>(null);
+  const [parsedSessions, setParsedSessions] = React.useState<SessionData[] | null>(null); // Stores all parsed sessions
   
+  // State for data filtered by date range and then processed for the current view
+  const [filteredSessionViewData, setFilteredSessionViewData] = React.useState<SessionData[] | null>(null);
   const [dailyAggregatedData, setDailyAggregatedData] = React.useState<RawDayAggregation[] | null>(null);
   const [weeklyAggregatedData, setWeeklyAggregatedData] = React.useState<RawWeekAggregation[] | null>(null);
   const [monthlyAggregatedData, setMonthlyAggregatedData] = React.useState<RawMonthAggregation[] | null>(null);
@@ -97,6 +101,9 @@ export default function SessionInsightsPage() {
   const [isLoadingView, setIsLoadingView] = React.useState(false);
   const [displayFormat, setDisplayFormat] = React.useState<DisplayFormat>('table');
 
+  const [dateFrom, setDateFrom] = React.useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = React.useState<Date | undefined>(undefined);
+
   const [analysisResult, setAnalysisResult] = React.useState<AnalyzeUsagePatternsOutput | null>(null);
   const [maintenanceSuggestion, setMaintenanceSuggestion] = React.useState<SuggestMaintenanceScheduleOutput | null>(null);
   const [isLoadingAi, setIsLoadingAi] = React.useState(false);
@@ -104,18 +111,22 @@ export default function SessionInsightsPage() {
 
   const handleDataLoadSubmit = (sessionDataText: string) => {
     setRawSessionData(sessionDataText);
+    // Clear all processed and aggregated data as the source has changed
     setParsedSessions(null);
+    setFilteredSessionViewData(null);
     setDailyAggregatedData(null);
     setWeeklyAggregatedData(null);
     setMonthlyAggregatedData(null);
     setAnalysisResult(null);
     setMaintenanceSuggestion(null);
     setActiveView(null); 
-    setDisplayFormat('table'); // Reset to table view on new data load
-     toast({
+    setDisplayFormat('table');
+    //setDateFrom(undefined); // Optionally reset date filters on new data load
+    //setDateTo(undefined);
+    toast({
         title: "Data Loaded",
         description: "Session data is ready. Select a view (Session, Daily, etc.) to process and display.",
-      });
+    });
   };
 
   const processAndSetView = async (viewType: ActiveView) => {
@@ -127,32 +138,72 @@ export default function SessionInsightsPage() {
     setIsLoadingView(true);
     setActiveView(viewType);
 
-    try {
-      let currentParsedSessions = parsedSessions;
-      if (!currentParsedSessions) { 
-        currentParsedSessions = parseRawTextToSessions(rawSessionData);
-        setParsedSessions(currentParsedSessions);
-      }
+    let currentAllParsedSessions = parsedSessions;
 
+    // Step 1: Parse raw data if not already parsed (e.g., on first view selection after data load)
+    if (!currentAllParsedSessions) {
+      try {
+        currentAllParsedSessions = parseRawTextToSessions(rawSessionData);
+        setParsedSessions(currentAllParsedSessions); // Store the full parsed set
+      } catch (error: any) {
+        console.error(`Error parsing raw session data:`, error);
+        toast({
+          variant: "destructive",
+          title: `Error Parsing Data`,
+          description: error instanceof SessionDataParsingError ? error.message : "An unexpected error occurred during parsing.",
+        });
+        setParsedSessions(null); // Ensure it's null on error
+        setActiveView(null);
+        setIsLoadingView(false);
+        return;
+      }
+    }
+    
+    // Step 2: Apply date filtering to the full parsed set
+    const effectiveSessions = currentAllParsedSessions.filter(session => {
+      try {
+        const loginDate = parseLoginTime(session.loginTime);
+        const isAfterFrom = dateFrom ? loginDate.getTime() >= startOfDay(dateFrom).getTime() : true;
+        const isBeforeTo = dateTo ? loginDate.getTime() <= endOfDay(dateTo).getTime() : true;
+        return isAfterFrom && isBeforeTo;
+      } catch (e) {
+        // This should ideally not happen if initial parsing was successful
+        console.warn("Error parsing loginTime during filtering:", e, session.loginTime);
+        return false; 
+      }
+    });
+
+    // Step 3: Process effectiveSessions for the selected viewType
+    try {
       if (viewType === 'session') {
-        const sortedSessions = [...currentParsedSessions].sort((a, b) => {
+        const sortedSessions = [...effectiveSessions].sort((a, b) => {
           try {
             return parseLoginTime(b.loginTime).getTime() - parseLoginTime(a.loginTime).getTime();
-          } catch (e) {
-            console.error("Error parsing loginTime during sort:", e);
-            return 0;
-          }
+          } catch (e) { return 0; }
         });
-        setParsedSessions(sortedSessions);
+        setFilteredSessionViewData(sortedSessions);
+        // Clear other aggregated data displays
+        setDailyAggregatedData(null);
+        setWeeklyAggregatedData(null);
+        setMonthlyAggregatedData(null);
       } else if (viewType === 'daily') {
-        const dailyData = aggregateSessionsByDay(currentParsedSessions);
+        const dailyData = aggregateSessionsByDay(effectiveSessions);
         setDailyAggregatedData(dailyData);
+        setFilteredSessionViewData(null); 
+        setWeeklyAggregatedData(null);
+        setMonthlyAggregatedData(null);
       } else if (viewType === 'weekly') {
-        const weeklyData = aggregateSessionsByWeek(currentParsedSessions);
+        const weeklyData = aggregateSessionsByWeek(effectiveSessions);
         setWeeklyAggregatedData(weeklyData);
+        setFilteredSessionViewData(null);
+        setDailyAggregatedData(null);
+        setMonthlyAggregatedData(null);
       } else if (viewType === 'monthly') {
-        const monthlyData = aggregateSessionsByMonth(currentParsedSessions);
+        const monthlyData = aggregateSessionsByMonth(effectiveSessions);
         setMonthlyAggregatedData(monthlyData);
+        setFilteredSessionViewData(null);
+        setDailyAggregatedData(null);
+        setWeeklyAggregatedData(null);
       }
     } catch (error: any) {
       console.error(`Error processing data for ${viewType} view:`, error);
@@ -161,14 +212,27 @@ export default function SessionInsightsPage() {
         title: `Error Processing Data for ${viewType || 'selected'} view`,
         description: error instanceof SessionDataParsingError ? error.message : "An unexpected error occurred.",
       });
-      setActiveView(null);
-      setParsedSessions(null);
+      // Potentially clear view-specific data on error
+      if (viewType === 'session') setFilteredSessionViewData(null);
+      if (viewType === 'daily') setDailyAggregatedData(null);
+      // ... etc.
     } finally {
       setIsLoadingView(false);
     }
   };
 
+  // Effect to re-process data when date filters change, if a view is active and data has been parsed
+  React.useEffect(() => {
+    if (activeView && parsedSessions) { // Only re-process if a view is active and base data is available
+      processAndSetView(activeView);
+    }
+  }, [dateFrom, dateTo]); // `parsedSessions` is not needed here as `processAndSetView` uses it from state.
+
+
   const handleAiAnalysis = async () => {
+    // AI Analysis should use the rawSessionData, or a filtered version if desired.
+    // For now, it uses the full rawSessionData string.
+    // If filtering is desired for AI, rawSessionData would need to be filtered and re-serialized to JSON.
     if (!rawSessionData) {
       toast({ variant: "destructive", title: "No Data", description: "Please load session data first." });
       return;
@@ -211,6 +275,12 @@ export default function SessionInsightsPage() {
     setClientCurrentTime(new Date().toLocaleTimeString());
   }, []);
 
+  const clearDateFilters = () => {
+    setDateFrom(undefined);
+    setDateTo(undefined);
+    // Re-processing will be triggered by the useEffect listening to dateFrom/dateTo
+  };
+
   const renderViewContent = () => {
     if (isLoadingView) {
       return (
@@ -221,7 +291,7 @@ export default function SessionInsightsPage() {
       );
     }
 
-    const noDataMessage = <p className="text-muted-foreground text-center py-4">No data to display for the selected view or format. Please load data and select a view.</p>;
+    const noDataMessage = <p className="text-muted-foreground text-center py-4">No data to display for the selected view, format, or date range. Please load data and select a view, or adjust filters.</p>;
     const chartNotImplementedMessage = (
         <Card>
             <CardHeader><CardTitle>Chart View</CardTitle></CardHeader>
@@ -235,10 +305,10 @@ export default function SessionInsightsPage() {
 
     switch (activeView) {
       case 'session':
-        if (!parsedSessions || parsedSessions.length === 0) return noDataMessage;
+        if (!filteredSessionViewData || filteredSessionViewData.length === 0) return noDataMessage;
         return displayFormat === 'table' ? 
-               <SessionDataTable sessions={parsedSessions} /> : 
-               <SessionTimelineChart sessions={parsedSessions} />;
+               <SessionDataTable sessions={filteredSessionViewData} /> : 
+               <SessionTimelineChart sessions={filteredSessionViewData} />;
       case 'daily':
         if (!dailyAggregatedData || dailyAggregatedData.length === 0) return noDataMessage;
         return displayFormat === 'table' ? (
@@ -279,22 +349,59 @@ export default function SessionInsightsPage() {
             {rawSessionData && (
               <Card className="shadow-lg">
                 <CardHeader>
-                  <CardTitle>View Options</CardTitle>
+                  <CardTitle>View Options & Filters</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                   <div className="grid grid-cols-2 gap-2 mb-2">
-                      <Button onClick={() => processAndSetView('session')} disabled={isLoadingView || !rawSessionData} variant={activeView === 'session' ? 'default' : 'outline'}><List className="mr-2 h-4 w-4" />Sessions</Button>
-                      <Button onClick={() => processAndSetView('daily')} disabled={isLoadingView || !rawSessionData} variant={activeView === 'daily' ? 'default' : 'outline'}><CalendarDays className="mr-2 h-4 w-4" />Daily</Button>
-                      <Button onClick={() => processAndSetView('weekly')} disabled={isLoadingView || !rawSessionData} variant={activeView === 'weekly' ? 'default' : 'outline'}><CalendarRange className="mr-2 h-4 w-4" />Weekly</Button>
-                      <Button onClick={() => processAndSetView('monthly')} disabled={isLoadingView || !rawSessionData} variant={activeView === 'monthly' ? 'default' : 'outline'}><Calendar className="mr-2 h-4 w-4" />Monthly</Button>
+                   <div className="space-y-2">
+                      <h4 className="text-sm font-medium text-muted-foreground">Aggregation Level:</h4>
+                      <div className="grid grid-cols-2 gap-2">
+                          <Button onClick={() => processAndSetView('session')} disabled={isLoadingView || !rawSessionData} variant={activeView === 'session' ? 'default' : 'outline'}><List className="mr-2 h-4 w-4" />Sessions</Button>
+                          <Button onClick={() => processAndSetView('daily')} disabled={isLoadingView || !rawSessionData} variant={activeView === 'daily' ? 'default' : 'outline'}><CalendarDays className="mr-2 h-4 w-4" />Daily</Button>
+                          <Button onClick={() => processAndSetView('weekly')} disabled={isLoadingView || !rawSessionData} variant={activeView === 'weekly' ? 'default' : 'outline'}><CalendarRange className="mr-2 h-4 w-4" />Weekly</Button>
+                          <Button onClick={() => processAndSetView('monthly')} disabled={isLoadingView || !rawSessionData} variant={activeView === 'monthly' ? 'default' : 'outline'}><CalendarIconLucide className="mr-2 h-4 w-4" />Monthly</Button>
+                      </div>
+                   </div>
+
+                   <div className="space-y-2 pt-2">
+                      <h4 className="text-sm font-medium text-muted-foreground">Filter by Date Range:</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className="w-full justify-start text-left font-normal text-sm" disabled={isLoadingView || !rawSessionData}>
+                              <CalendarIconLucide className="mr-2 h-4 w-4" />
+                              {dateFrom ? formatDate(dateFrom) : <span>Start date</span>}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus disabled={(date) => dateTo ? date > dateTo : false}/>
+                          </PopoverContent>
+                        </Popover>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button variant="outline" className="w-full justify-start text-left font-normal text-sm" disabled={isLoadingView || !rawSessionData}>
+                              <CalendarIconLucide className="mr-2 h-4 w-4" />
+                              {dateTo ? formatDate(dateTo) : <span>End date</span>}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0">
+                            <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus disabled={(date) => dateFrom ? date < dateFrom : false} />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      {(dateFrom || dateTo) && (
+                        <Button variant="ghost" size="sm" onClick={clearDateFilters} className="w-full text-xs" disabled={isLoadingView}>
+                          <FilterX className="mr-1 h-3 w-3" /> Clear Date Filters
+                        </Button>
+                      )}
                     </div>
+
                     {activeView && (
                         <div className="pt-2">
-                            <p className="text-sm font-medium mb-1 text-center">Display Format:</p>
+                            <p className="text-sm font-medium mb-1 text-center text-muted-foreground">Display Format:</p>
                             <Tabs defaultValue="table" value={displayFormat} onValueChange={(value) => setDisplayFormat(value as DisplayFormat)} className="w-full">
                                 <TabsList className="grid w-full grid-cols-2">
-                                <TabsTrigger value="table"><TableIcon className="mr-2 h-4 w-4"/>Table</TabsTrigger>
-                                <TabsTrigger value="chart"><BarChart2 className="mr-2 h-4 w-4"/>Chart</TabsTrigger>
+                                <TabsTrigger value="table" disabled={isLoadingView}><TableIcon className="mr-2 h-4 w-4"/>Table</TabsTrigger>
+                                <TabsTrigger value="chart" disabled={isLoadingView}><BarChart2 className="mr-2 h-4 w-4"/>Chart</TabsTrigger>
                                 </TabsList>
                             </Tabs>
                         </div>
@@ -336,7 +443,7 @@ export default function SessionInsightsPage() {
             {!isLoadingAi && maintenanceSuggestion && (
               <MaintenanceSuggestionDisplay data={maintenanceSuggestion} />
             )}
-            <AnomalyAlertDisplay />
+            <AnomalyAlertDisplay /> {/* This component is currently static */}
           </div>
         </div>
       </main>
