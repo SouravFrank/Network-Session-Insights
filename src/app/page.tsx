@@ -8,7 +8,7 @@ import { UsagePatternsDisplay } from "@/components/session-insights/usage-patter
 import { MaintenanceSuggestionDisplay } from "@/components/session-insights/maintenance-suggestion-display";
 import { AnomalyAlertDisplay } from "@/components/session-insights/anomaly-alert-display";
 import { SessionDataTable } from "@/components/session-insights/session-data-table";
-import { DailyAggregationTable } from "@/components/session-insights/tables/DailyAggregationTable"; // New Import
+import { DailyAggregationTable } from "@/components/session-insights/tables/DailyAggregationTable";
 import { SessionTimelineChart } from "@/components/session-insights/charts/SessionTimelineChart";
 import { DailyAggregationChart } from "@/components/session-insights/charts/DailyAggregationChart";
 import { WeeklyAggregationChart } from "@/components/session-insights/charts/WeeklyAggregationChart";
@@ -54,6 +54,8 @@ const sessionDailyDatePresets: DatePreset[] = [
     }
   },
   { label: "Last 7 Days", getRange: () => ({ from: startOfDay(subDays(new Date(), 6)), to: endOfDay(new Date()) }) },
+  { label: "Last 14 Days", getRange: () => ({ from: startOfDay(subDays(new Date(), 13)), to: endOfDay(new Date()) }) },
+  { label: "Last 30 Days", getRange: () => ({ from: startOfDay(subDays(new Date(), 29)), to: endOfDay(new Date()) }) },
   { label: "This Week", getRange: () => ({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }) },
   { label: "Last Week", getRange: () => {
       const lastWeekStart = startOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 });
@@ -68,6 +70,7 @@ const sessionDailyDatePresets: DatePreset[] = [
       return { from: lastMonthStart, to: lastMonthEnd };
     }
   },
+  { label: "Year to Date", getRange: () => ({ from: startOfYear(new Date()), to: endOfDay(new Date()) }) },
   { label: "This Year", getRange: () => ({ from: startOfYear(new Date()), to: endOfYear(new Date()) }) },
   { label: "Last Year", getRange: () => {
       const lastYearStart = startOfYear(subYears(new Date(), 1));
@@ -81,8 +84,11 @@ const weeklyDatePresets: DatePreset[] = [
   { label: "This Week", getRange: () => ({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }) },
   { label: "Last Week", getRange: () => { const lw = subWeeks(new Date(), 1); return { from: startOfWeek(lw, { weekStartsOn: 1 }), to: endOfWeek(lw, { weekStartsOn: 1 }) }; } },
   { label: "Last 4 Weeks", getRange: () => ({ from: startOfWeek(subWeeks(new Date(), 3), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }) },
+  { label: "Last 8 Weeks", getRange: () => ({ from: startOfWeek(subWeeks(new Date(), 7), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }) },
+  { label: "Last 12 Weeks", getRange: () => ({ from: startOfWeek(subWeeks(new Date(), 11), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }) },
   { label: "This Quarter", getRange: () => ({ from: startOfQuarter(new Date()), to: endOfQuarter(new Date()) }) },
   { label: "Last Quarter", getRange: () => { const lq = subQuarters(new Date(), 1); return { from: startOfQuarter(lq), to: endOfQuarter(lq) }; } },
+  { label: "Year to Date", getRange: () => ({ from: startOfYear(new Date()), to: endOfWeek(new Date(), {weekStartsOn: 1}) }) },
   { label: "This Year", getRange: () => ({ from: startOfYear(new Date()), to: endOfYear(new Date()) }) },
   { label: "Last Year", getRange: () => { const ly = subYears(new Date(), 1); return { from: startOfYear(ly), to: endOfYear(ly) }; } },
 ];
@@ -92,8 +98,10 @@ const monthlyDatePresets: DatePreset[] = [
   { label: "Last Month", getRange: () => { const lm = subMonths(new Date(), 1); return { from: startOfMonth(lm), to: endOfMonth(lm) }; } },
   { label: "Last 3 Months", getRange: () => ({ from: startOfMonth(subMonths(new Date(), 2)), to: endOfMonth(new Date()) }) },
   { label: "Last 6 Months", getRange: () => ({ from: startOfMonth(subMonths(new Date(), 5)), to: endOfMonth(new Date()) }) },
+  { label: "Last 12 Months", getRange: () => ({ from: startOfMonth(subMonths(new Date(), 11)), to: endOfMonth(new Date()) }) },
   { label: "This Quarter", getRange: () => ({ from: startOfQuarter(new Date()), to: endOfQuarter(new Date()) }) },
   { label: "Last Quarter", getRange: () => { const lq = subQuarters(new Date(), 1); return { from: startOfQuarter(lq), to: endOfQuarter(lq) }; } },
+  { label: "Year to Date", getRange: () => ({ from: startOfYear(new Date()), to: endOfMonth(new Date()) }) },
   { label: "This Year", getRange: () => ({ from: startOfYear(new Date()), to: endOfYear(new Date()) }) },
   { label: "Last Year", getRange: () => { const ly = subYears(new Date(), 1); return { from: startOfYear(ly), to: endOfYear(ly) }; } },
 ];
@@ -193,7 +201,6 @@ export default function SessionInsightsPage() {
             setCurrentDatePresets(monthlyDatePresets);
             break;
         default:
-             // When rawSessionData is loaded but no view is active yet, or for null activeView
             setCurrentDatePresets(rawSessionData ? sessionDailyDatePresets : []); 
             break;
     }
@@ -210,7 +217,6 @@ export default function SessionInsightsPage() {
     setMaintenanceSuggestion(null);
     setActiveView(null); 
     setDisplayFormat('table');
-    // Reset date filters when new data is loaded
     setDateFrom(undefined);
     setDateTo(undefined);
     toast({
@@ -226,7 +232,7 @@ export default function SessionInsightsPage() {
     }
     
     setIsLoadingView(true);
-    setActiveView(viewType); // Set active view first to trigger preset update if needed
+    setActiveView(viewType);
 
     let currentAllParsedSessions = parsedSessions;
 
@@ -311,9 +317,7 @@ export default function SessionInsightsPage() {
       processAndSetView(activeView);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateFrom, dateTo]); // Re-run if date filters change and an active view and data are present.
-                         // We don't add activeView here directly, because processAndSetView is called when activeView changes.
-                         // processAndSetView itself will use the current dateFrom/dateTo.
+  }, [dateFrom, dateTo]);
 
 
   const handleAiAnalysis = async () => {
@@ -327,8 +331,6 @@ export default function SessionInsightsPage() {
     setMaintenanceSuggestion(null);
 
     try {
-      // For AI analysis, we use the rawSessionData which might represent the complete dataset,
-      // irrespective of current date filters. If AI should also consider filters, this logic needs change.
       const usagePatterns = await analyzeUsagePatterns({ sessionData: rawSessionData });
       setAnalysisResult(usagePatterns);
 
@@ -364,7 +366,6 @@ export default function SessionInsightsPage() {
   const clearDateFilters = () => {
     setDateFrom(undefined);
     setDateTo(undefined);
-    // Re-process view with cleared filters if an active view exists
     if (activeView && (rawSessionData || parsedSessions)) {
         processAndSetView(activeView);
     }
@@ -374,10 +375,6 @@ export default function SessionInsightsPage() {
     const { from, to } = preset.getRange();
     setDateFrom(from);
     setDateTo(to);
-     // Re-process view with new preset filters if an active view exists
-    if (activeView && (rawSessionData || parsedSessions)) {
-        // processAndSetView will be triggered by useEffect on dateFrom/dateTo change
-    }
   };
 
   const renderViewContent = () => {
@@ -525,7 +522,7 @@ export default function SessionInsightsPage() {
                   <Button 
                       onClick={handleAiAnalysis} 
                       disabled={isLoadingAi || !rawSessionData}
-                      className="w-full mt-6" // Increased top margin
+                      className="w-full mt-6"
                     >
                     {isLoadingAi ? (
                       <>
