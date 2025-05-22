@@ -9,12 +9,16 @@ import { MaintenanceSuggestionDisplay } from "@/components/session-insights/main
 import { AnomalyAlertDisplay } from "@/components/session-insights/anomaly-alert-display";
 import { SessionDataTable } from "@/components/session-insights/session-data-table";
 import { SessionTimelineChart } from "@/components/session-insights/charts/SessionTimelineChart";
+import { DailyAggregationChart } from "@/components/session-insights/charts/DailyAggregationChart";
+import { WeeklyAggregationChart } from "@/components/session-insights/charts/WeeklyAggregationChart";
+import { MonthlyAggregationChart } from "@/components/session-insights/charts/MonthlyAggregationChart";
+
 import { analyzeUsagePatterns, type AnalyzeUsagePatternsOutput } from "@/ai/flows/analyze-usage-patterns";
 import { suggestMaintenanceSchedule, type SuggestMaintenanceScheduleOutput } from "@/ai/flows/suggest-maintenance-schedule";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
@@ -154,7 +158,6 @@ export default function SessionInsightsPage() {
 
   const handleDataLoadSubmit = (sessionDataText: string) => {
     setRawSessionData(sessionDataText);
-    // Clear all processed and aggregated data as the source has changed
     setParsedSessions(null);
     setFilteredSessionViewData(null);
     setDailyAggregatedData(null);
@@ -181,11 +184,10 @@ export default function SessionInsightsPage() {
 
     let currentAllParsedSessions = parsedSessions;
 
-    // Step 1: Parse raw data if not already parsed (e.g., on first view selection after data load)
     if (!currentAllParsedSessions) {
       try {
         currentAllParsedSessions = parseRawTextToSessions(rawSessionData);
-        setParsedSessions(currentAllParsedSessions); // Store the full parsed set
+        setParsedSessions(currentAllParsedSessions);
       } catch (error: any) {
         console.error(`Error parsing raw session data:`, error);
         toast({
@@ -193,14 +195,13 @@ export default function SessionInsightsPage() {
           title: `Error Parsing Data`,
           description: error instanceof SessionDataParsingError ? error.message : "An unexpected error occurred during parsing.",
         });
-        setParsedSessions(null); // Ensure it's null on error
+        setParsedSessions(null);
         setActiveView(null);
         setIsLoadingView(false);
         return;
       }
     }
     
-    // Step 2: Apply date filtering to the full parsed set
     const effectiveSessions = currentAllParsedSessions.filter(session => {
       try {
         const loginDate = parseLoginTime(session.loginTime);
@@ -213,7 +214,6 @@ export default function SessionInsightsPage() {
       }
     });
 
-    // Step 3: Process effectiveSessions for the selected viewType
     try {
       if (viewType === 'session') {
         const sortedSessions = [...effectiveSessions].sort((a, b) => {
@@ -253,17 +253,19 @@ export default function SessionInsightsPage() {
       });
       if (viewType === 'session') setFilteredSessionViewData(null);
       if (viewType === 'daily') setDailyAggregatedData(null);
-      // ... etc.
+      if (viewType === 'weekly') setWeeklyAggregatedData(null);
+      if (viewType === 'monthly') setMonthlyAggregatedData(null);
     } finally {
       setIsLoadingView(false);
     }
   };
 
   React.useEffect(() => {
-    if (activeView && parsedSessions) { 
+    if (activeView && (rawSessionData || parsedSessions)) { // Ensure rawSessionData or parsedSessions exists
       processAndSetView(activeView);
     }
-  }, [dateFrom, dateTo]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateFrom, dateTo, activeView]); // Re-run if date filters or activeView changes and data is present.
 
 
   const handleAiAnalysis = async () => {
@@ -331,16 +333,7 @@ export default function SessionInsightsPage() {
     }
 
     const noDataMessage = <p className="text-muted-foreground text-center py-4">No data to display for the selected view, format, or date range. Please load data and select a view, or adjust filters.</p>;
-    const chartNotImplementedMessage = (
-        <Card>
-            <CardHeader><CardTitle>Chart View</CardTitle></CardHeader>
-            <CardContent className="flex flex-col items-center justify-center min-h-[200px]">
-                <Info className="h-10 w-10 text-muted-foreground mb-3" />
-                <p className="text-muted-foreground">Chart for this view is not yet implemented.</p>
-            </CardContent>
-        </Card>
-    );
-
+    
     switch (activeView) {
       case 'session':
         if (!filteredSessionViewData || filteredSessionViewData.length === 0) return noDataMessage;
@@ -354,7 +347,7 @@ export default function SessionInsightsPage() {
             <CardHeader><CardTitle>Daily Aggregated Data</CardTitle></CardHeader>
             <CardContent><pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-[400px]">{JSON.stringify(dailyAggregatedData.map(d => ({...d, date: formatDate(d.date), totalDurationFormatted: formatDurationFromSeconds(d.totalDurationSeconds, true), totalDownloadedMB: d.totalDownloadedMB.toFixed(2), totalUploadedMB: d.totalUploadedMB.toFixed(2) })), null, 2)}</pre></CardContent>
           </Card>
-        ) : chartNotImplementedMessage;
+        ) : <DailyAggregationChart data={dailyAggregatedData} />;
       case 'weekly':
         if (!weeklyAggregatedData || weeklyAggregatedData.length === 0) return noDataMessage;
         return displayFormat === 'table' ? (
@@ -362,7 +355,7 @@ export default function SessionInsightsPage() {
             <CardHeader><CardTitle>Weekly Aggregated Data</CardTitle></CardHeader>
             <CardContent><pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-[400px]">{JSON.stringify(weeklyAggregatedData.map(w => ({...w, startDate: formatDate(w.startDate), endDate: formatDate(w.endDate), totalDurationFormatted: formatDurationFromSeconds(w.totalDurationSeconds, true), totalDownloadedMB: w.totalDownloadedMB.toFixed(2), totalUploadedMB: w.totalUploadedMB.toFixed(2)})), null, 2)}</pre></CardContent>
           </Card>
-        ) : chartNotImplementedMessage;
+        ) : <WeeklyAggregationChart data={weeklyAggregatedData} />;
       case 'monthly':
         if (!monthlyAggregatedData || monthlyAggregatedData.length === 0) return noDataMessage;
         return displayFormat === 'table' ? (
@@ -370,7 +363,7 @@ export default function SessionInsightsPage() {
             <CardHeader><CardTitle>Monthly Aggregated Data</CardTitle></CardHeader>
             <CardContent><pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-[400px]">{JSON.stringify(monthlyAggregatedData.map(m => ({...m, startDate: formatDate(m.startDate), endDate: formatDate(m.endDate), totalDurationFormatted: formatDurationFromSeconds(m.totalDurationSeconds, true), totalDownloadedMB: m.totalDownloadedMB.toFixed(2), totalUploadedMB: m.totalUploadedMB.toFixed(2)})), null, 2)}</pre></CardContent>
           </Card>
-        ) : chartNotImplementedMessage;
+        ) : <MonthlyAggregationChart data={monthlyAggregatedData} />;
       default:
         return rawSessionData ? <p className="text-muted-foreground text-center py-4">Select a view (Session, Daily, Weekly, Monthly) to see processed data.</p> : <p className="text-muted-foreground text-center py-4">Please load session data using the form above.</p>;
     }
@@ -509,7 +502,9 @@ export default function SessionInsightsPage() {
             {!isLoadingAi && maintenanceSuggestion && (
               <MaintenanceSuggestionDisplay data={maintenanceSuggestion} />
             )}
-            <AnomalyAlertDisplay /> 
+            {!isLoadingAi && (analysisResult || maintenanceSuggestion) && (
+                 <AnomalyAlertDisplay /> 
+            )}
           </div>
         </div>
       </main>
@@ -520,4 +515,3 @@ export default function SessionInsightsPage() {
     </div>
   );
 }
-
