@@ -32,7 +32,8 @@ import {
   startOfDay, endOfDay, subDays, 
   startOfWeek, endOfWeek, subWeeks,
   startOfMonth, endOfMonth, subMonths,
-  startOfYear, endOfYear, subYears
+  startOfYear, endOfYear, subYears,
+  startOfQuarter, endOfQuarter, subQuarters
 } from 'date-fns';
 
 
@@ -44,7 +45,7 @@ interface DatePreset {
   getRange: () => { from: Date; to: Date };
 }
 
-const datePresets: DatePreset[] = [
+const sessionDailyDatePresets: DatePreset[] = [
   { label: "Today", getRange: () => ({ from: startOfDay(new Date()), to: endOfDay(new Date()) }) },
   { label: "Yesterday", getRange: () => {
       const yesterday = subDays(new Date(), 1);
@@ -73,6 +74,27 @@ const datePresets: DatePreset[] = [
       return { from: lastYearStart, to: lastYearEnd };
     }
   },
+];
+
+const weeklyDatePresets: DatePreset[] = [
+  { label: "This Week", getRange: () => ({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }) },
+  { label: "Last Week", getRange: () => { const lw = subWeeks(new Date(), 1); return { from: startOfWeek(lw, { weekStartsOn: 1 }), to: endOfWeek(lw, { weekStartsOn: 1 }) }; } },
+  { label: "Last 4 Weeks", getRange: () => ({ from: startOfWeek(subWeeks(new Date(), 3), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }) },
+  { label: "This Quarter", getRange: () => ({ from: startOfQuarter(new Date()), to: endOfQuarter(new Date()) }) },
+  { label: "Last Quarter", getRange: () => { const lq = subQuarters(new Date(), 1); return { from: startOfQuarter(lq), to: endOfQuarter(lq) }; } },
+  { label: "This Year", getRange: () => ({ from: startOfYear(new Date()), to: endOfYear(new Date()) }) },
+  { label: "Last Year", getRange: () => { const ly = subYears(new Date(), 1); return { from: startOfYear(ly), to: endOfYear(ly) }; } },
+];
+
+const monthlyDatePresets: DatePreset[] = [
+  { label: "This Month", getRange: () => ({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }) },
+  { label: "Last Month", getRange: () => { const lm = subMonths(new Date(), 1); return { from: startOfMonth(lm), to: endOfMonth(lm) }; } },
+  { label: "Last 3 Months", getRange: () => ({ from: startOfMonth(subMonths(new Date(), 2)), to: endOfMonth(new Date()) }) },
+  { label: "Last 6 Months", getRange: () => ({ from: startOfMonth(subMonths(new Date(), 5)), to: endOfMonth(new Date()) }) },
+  { label: "This Quarter", getRange: () => ({ from: startOfQuarter(new Date()), to: endOfQuarter(new Date()) }) },
+  { label: "Last Quarter", getRange: () => { const lq = subQuarters(new Date(), 1); return { from: startOfQuarter(lq), to: endOfQuarter(lq) }; } },
+  { label: "This Year", getRange: () => ({ from: startOfYear(new Date()), to: endOfYear(new Date()) }) },
+  { label: "Last Year", getRange: () => { const ly = subYears(new Date(), 1); return { from: startOfYear(ly), to: endOfYear(ly) }; } },
 ];
 
 
@@ -136,9 +158,8 @@ function parseRawTextToSessions(rawData: string): SessionData[] {
 
 export default function SessionInsightsPage() {
   const [rawSessionData, setRawSessionData] = React.useState<string | null>(null);
-  const [parsedSessions, setParsedSessions] = React.useState<SessionData[] | null>(null); // Stores all parsed sessions
+  const [parsedSessions, setParsedSessions] = React.useState<SessionData[] | null>(null); 
   
-  // State for data filtered by date range and then processed for the current view
   const [filteredSessionViewData, setFilteredSessionViewData] = React.useState<SessionData[] | null>(null);
   const [dailyAggregatedData, setDailyAggregatedData] = React.useState<RawDayAggregation[] | null>(null);
   const [weeklyAggregatedData, setWeeklyAggregatedData] = React.useState<RawWeekAggregation[] | null>(null);
@@ -150,11 +171,32 @@ export default function SessionInsightsPage() {
 
   const [dateFrom, setDateFrom] = React.useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = React.useState<Date | undefined>(undefined);
+  const [currentDatePresets, setCurrentDatePresets] = React.useState<DatePreset[]>(sessionDailyDatePresets);
+
 
   const [analysisResult, setAnalysisResult] = React.useState<AnalyzeUsagePatternsOutput | null>(null);
   const [maintenanceSuggestion, setMaintenanceSuggestion] = React.useState<SuggestMaintenanceScheduleOutput | null>(null);
   const [isLoadingAi, setIsLoadingAi] = React.useState(false);
   const { toast } = useToast();
+
+  React.useEffect(() => {
+    switch (activeView) {
+        case 'session':
+        case 'daily':
+            setCurrentDatePresets(sessionDailyDatePresets);
+            break;
+        case 'weekly':
+            setCurrentDatePresets(weeklyDatePresets);
+            break;
+        case 'monthly':
+            setCurrentDatePresets(monthlyDatePresets);
+            break;
+        default:
+             // When rawSessionData is loaded but no view is active yet, or for null activeView
+            setCurrentDatePresets(rawSessionData ? sessionDailyDatePresets : []); 
+            break;
+    }
+  }, [activeView, rawSessionData]);
 
   const handleDataLoadSubmit = (sessionDataText: string) => {
     setRawSessionData(sessionDataText);
@@ -167,6 +209,9 @@ export default function SessionInsightsPage() {
     setMaintenanceSuggestion(null);
     setActiveView(null); 
     setDisplayFormat('table');
+    // Reset date filters when new data is loaded
+    setDateFrom(undefined);
+    setDateTo(undefined);
     toast({
         title: "Data Loaded",
         description: "Session data is ready. Select a view (Session, Daily, etc.) to process and display.",
@@ -180,7 +225,7 @@ export default function SessionInsightsPage() {
     }
     
     setIsLoadingView(true);
-    setActiveView(viewType);
+    setActiveView(viewType); // Set active view first to trigger preset update if needed
 
     let currentAllParsedSessions = parsedSessions;
 
@@ -261,11 +306,13 @@ export default function SessionInsightsPage() {
   };
 
   React.useEffect(() => {
-    if (activeView && (rawSessionData || parsedSessions)) { // Ensure rawSessionData or parsedSessions exists
+    if (activeView && (rawSessionData || parsedSessions)) { 
       processAndSetView(activeView);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateFrom, dateTo, activeView]); // Re-run if date filters or activeView changes and data is present.
+  }, [dateFrom, dateTo]); // Re-run if date filters change and an active view and data are present.
+                         // We don't add activeView here directly, because processAndSetView is called when activeView changes.
+                         // processAndSetView itself will use the current dateFrom/dateTo.
 
 
   const handleAiAnalysis = async () => {
@@ -279,6 +326,8 @@ export default function SessionInsightsPage() {
     setMaintenanceSuggestion(null);
 
     try {
+      // For AI analysis, we use the rawSessionData which might represent the complete dataset,
+      // irrespective of current date filters. If AI should also consider filters, this logic needs change.
       const usagePatterns = await analyzeUsagePatterns({ sessionData: rawSessionData });
       setAnalysisResult(usagePatterns);
 
@@ -314,12 +363,20 @@ export default function SessionInsightsPage() {
   const clearDateFilters = () => {
     setDateFrom(undefined);
     setDateTo(undefined);
+    // Re-process view with cleared filters if an active view exists
+    if (activeView && (rawSessionData || parsedSessions)) {
+        processAndSetView(activeView);
+    }
   };
 
   const applyDatePreset = (preset: DatePreset) => {
     const { from, to } = preset.getRange();
     setDateFrom(from);
     setDateTo(to);
+     // Re-process view with new preset filters if an active view exists
+    if (activeView && (rawSessionData || parsedSessions)) {
+        // processAndSetView will be triggered by useEffect on dateFrom/dateTo change
+    }
   };
 
   const renderViewContent = () => {
@@ -392,7 +449,7 @@ export default function SessionInsightsPage() {
                           <Button onClick={() => processAndSetView('monthly')} disabled={isLoadingView || !rawSessionData} variant={activeView === 'monthly' ? 'default' : 'outline'}><CalendarIconLucide className="mr-2 h-4 w-4" />Monthly</Button>
                       </div>
                    </div>
-
+                  
                    <div className="space-y-2 pt-2">
                       <h4 className="text-sm font-medium text-muted-foreground">Filter by Date Range:</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -419,43 +476,45 @@ export default function SessionInsightsPage() {
                           </PopoverContent>
                         </Popover>
                       </div>
-                      {(dateFrom || dateTo) && (
-                        <Button 
-                            variant="outline" 
-                            size="sm" 
-                            onClick={clearDateFilters} 
-                            className="w-full text-xs text-destructive border-destructive hover:bg-destructive/5 hover:text-destructive" 
-                            disabled={isLoadingView}
-                        >
-                          <FilterX className="mr-1 h-3 w-3" /> Clear Date Filters
-                        </Button>
-                      )}
                     </div>
                     
-                    <div className="space-y-2 pt-2">
-                        <h4 className="text-sm font-medium text-muted-foreground">Date Presets:</h4>
-                        <ScrollArea className="w-full whitespace-nowrap rounded-md">
-                            <div className="flex space-x-2 pb-2">
-                                {datePresets.map((preset) => (
-                                <Button
-                                    key={preset.label}
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => applyDatePreset(preset)}
-                                    disabled={isLoadingView || !rawSessionData}
-                                    className="text-xs"
-                                >
-                                    {preset.label}
-                                </Button>
-                                ))}
-                            </div>
-                            <ScrollBar orientation="horizontal" />
-                        </ScrollArea>
-                    </div>
+                    {currentDatePresets.length > 0 && (
+                        <div className="space-y-2 pt-2">
+                            <h4 className="text-sm font-medium text-muted-foreground">Date Presets:</h4>
+                            <ScrollArea className="w-full whitespace-nowrap rounded-md">
+                                <div className="flex space-x-2 pb-2">
+                                    {currentDatePresets.map((preset) => (
+                                    <Button
+                                        key={preset.label}
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => applyDatePreset(preset)}
+                                        disabled={isLoadingView || !rawSessionData}
+                                        className="text-xs"
+                                    >
+                                        {preset.label}
+                                    </Button>
+                                    ))}
+                                </div>
+                                <ScrollBar orientation="horizontal" />
+                            </ScrollArea>
+                        </div>
+                    )}
 
+                    {(dateFrom || dateTo) && (
+                      <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={clearDateFilters} 
+                          className="w-full text-xs text-destructive border-destructive hover:bg-destructive/5 hover:text-destructive mt-2" 
+                          disabled={isLoadingView}
+                      >
+                        <FilterX className="mr-1 h-3 w-3" /> Clear Date Filters
+                      </Button>
+                    )}
 
                     {activeView && (
-                        <div className="pt-2">
+                        <div className="pt-4">
                             <p className="text-sm font-medium mb-1 text-center text-muted-foreground">Display Format:</p>
                             <Tabs defaultValue="table" value={displayFormat} onValueChange={(value) => setDisplayFormat(value as DisplayFormat)} className="w-full">
                                 <TabsList className="grid w-full grid-cols-2">
@@ -468,7 +527,7 @@ export default function SessionInsightsPage() {
                   <Button 
                       onClick={handleAiAnalysis} 
                       disabled={isLoadingAi || !rawSessionData}
-                      className="w-full mt-4"
+                      className="w-full mt-6" // Increased top margin
                     >
                     {isLoadingAi ? (
                       <>
@@ -515,3 +574,4 @@ export default function SessionInsightsPage() {
     </div>
   );
 }
+
