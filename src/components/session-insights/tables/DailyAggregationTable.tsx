@@ -19,6 +19,8 @@ interface DailyAggregationTableProps {
   data: RawDayAggregation[];
 }
 
+const SECONDS_IN_A_DAY = 86400;
+
 export function DailyAggregationTable({ data }: DailyAggregationTableProps) {
   if (!data || data.length === 0) {
     return (
@@ -52,25 +54,30 @@ export function DailyAggregationTable({ data }: DailyAggregationTableProps) {
           <TableCaption>A list of daily aggregated session data.</TableCaption>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[150px]">Date</TableHead>
-              <TableHead>Total Duration</TableHead>
+              <TableHead className="w-[120px]">Date</TableHead>
+              <TableHead>Active Duration</TableHead>
+              <TableHead>Inactive Duration</TableHead>
               <TableHead className="text-right">Total Downloaded</TableHead>
               <TableHead className="text-right">Total Uploaded</TableHead>
               <TableHead className="text-center">Session Segments</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.map((agg, index) => (
-              <TableRow key={`daily-agg-${agg.date.toISOString()}-${index}`}>
-                <TableCell className="font-medium">
-                  {formatDate(agg.date)}
-                </TableCell>
-                <TableCell>{formatDurationFromSeconds(agg.totalDurationSeconds, true)}</TableCell>
-                <TableCell className="text-right">{formatDataSizeForDisplay(agg.totalDownloadedMB, 1)}</TableCell>
-                <TableCell className="text-right">{formatDataSizeForDisplay(agg.totalUploadedMB, 1)}</TableCell>
-                <TableCell className="text-center">{agg.sessionCount}</TableCell>
-              </TableRow>
-            ))}
+            {data.map((agg, index) => {
+              const inactiveDurationSeconds = SECONDS_IN_A_DAY - agg.totalDurationSeconds;
+              return (
+                <TableRow key={`daily-agg-${agg.date.toISOString()}-${index}`}>
+                  <TableCell className="font-medium">
+                    {formatDate(agg.date)}
+                  </TableCell>
+                  <TableCell>{formatDurationFromSeconds(agg.totalDurationSeconds, true)}</TableCell>
+                  <TableCell>{formatDurationFromSeconds(inactiveDurationSeconds > 0 ? inactiveDurationSeconds : 0, true)}</TableCell>
+                  <TableCell className="text-right">{formatDataSizeForDisplay(agg.totalDownloadedMB, 1)}</TableCell>
+                  <TableCell className="text-right">{formatDataSizeForDisplay(agg.totalUploadedMB, 1)}</TableCell>
+                  <TableCell className="text-center">{agg.sessionCount}</TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </CardContent>

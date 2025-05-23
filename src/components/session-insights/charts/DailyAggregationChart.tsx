@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
 import { LineChart, CartesianGrid, XAxis, YAxis, Line, Tooltip as RechartsTooltip, Legend as RechartsLegend } from "recharts";
-import { TrendingUp, Download, Upload, Clock } from "lucide-react";
+import { TrendingUp, Download, Upload, Clock, PowerOff } from "lucide-react"; // Added PowerOff
 
 interface DailyAggregationChartProps {
   data: RawDayAggregation[];
@@ -33,8 +33,10 @@ type ChartDataItem = {
   timestamp: number; // Original timestamp for sorting
   totalDownloadedMB: number;
   totalUploadedMB: number;
-  totalDurationSeconds: number; // Added for tooltip
+  totalDurationSeconds: number; 
 };
+
+const SECONDS_IN_A_DAY = 86400;
 
 export function DailyAggregationChart({ data, chartTitlePrefix = "" }: DailyAggregationChartProps) {
   const chartData = React.useMemo((): ChartDataItem[] => {
@@ -45,9 +47,9 @@ export function DailyAggregationChart({ data, chartTitlePrefix = "" }: DailyAggr
         timestamp: agg.date.getTime(),
         totalDownloadedMB: parseFloat(agg.totalDownloadedMB.toFixed(2)),
         totalUploadedMB: parseFloat(agg.totalUploadedMB.toFixed(2)),
-        totalDurationSeconds: agg.totalDurationSeconds, // Ensure this is included
+        totalDurationSeconds: agg.totalDurationSeconds,
       }))
-      .sort((a, b) => a.timestamp - b.timestamp); // Sort by date ascending for chart
+      .sort((a, b) => a.timestamp - b.timestamp); 
   }, [data]);
 
   if (!chartData || chartData.length === 0) {
@@ -67,12 +69,14 @@ export function DailyAggregationChart({ data, chartTitlePrefix = "" }: DailyAggr
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const dataPoint: ChartDataItem = payload[0].payload;
+      const inactiveDurationSeconds = SECONDS_IN_A_DAY - dataPoint.totalDurationSeconds;
       return (
         <div className="bg-background border p-3 shadow-lg rounded-md text-sm">
           <p className="font-bold mb-1">Date: {label}</p>
           {dataPoint.totalDurationSeconds !== undefined && (
-             <p className="flex items-center"><Clock className="mr-1.5 h-4 w-4 text-muted-foreground" />Duration: {formatDurationFromSeconds(dataPoint.totalDurationSeconds, true)}</p>
+             <p className="flex items-center"><Clock className="mr-1.5 h-4 w-4 text-muted-foreground" />Active: {formatDurationFromSeconds(dataPoint.totalDurationSeconds, true)}</p>
           )}
+          <p className="flex items-center"><PowerOff className="mr-1.5 h-4 w-4 text-muted-foreground" />Inactive: {formatDurationFromSeconds(inactiveDurationSeconds > 0 ? inactiveDurationSeconds : 0, true)}</p>
           {payload.map((pld: any) => (
             <p key={pld.dataKey} style={{ color: pld.stroke }} className="flex items-center">
               {pld.dataKey === 'totalDownloadedMB' && <Download className="mr-1.5 h-4 w-4" />}

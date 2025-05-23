@@ -3,12 +3,12 @@
 
 import * as React from "react";
 import type { RawWeekAggregation } from "@/lib/session-utils/types";
-import { formatDate, formatDataSizeForDisplay, formatDurationFromSeconds } from "@/lib/session-utils/formatters";
+import { formatDate, formatDataSizeForDisplay, formatDurationFromSeconds, getDaysInPeriod } from "@/lib/session-utils/formatters";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
 import { LineChart, CartesianGrid, XAxis, YAxis, Line, Tooltip as RechartsTooltip, Legend as RechartsLegend } from "recharts";
-import { TrendingUp, Download, Upload, Clock } from "lucide-react";
+import { TrendingUp, Download, Upload, Clock, PowerOff } from "lucide-react"; // Added PowerOff
 
 interface WeeklyAggregationChartProps {
   data: RawWeekAggregation[];
@@ -29,25 +29,31 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 type ChartDataItem = {
-  weekLabel: string; // "W<N> <YYYY>" or "DD/MM - DD/MM"
-  timestamp: number; // Start date timestamp for sorting
+  weekLabel: string; 
+  timestamp: number; 
   totalDownloadedMB: number;
   totalUploadedMB: number;
-  totalDurationSeconds: number; // Added for tooltip
+  totalDurationSeconds: number; 
+  startDate: Date; // Keep original start and end dates for accurate inactive calculation
+  endDate: Date;
 };
+
+const SECONDS_IN_A_DAY = 86400;
 
 export function WeeklyAggregationChart({ data, chartTitlePrefix = "" }: WeeklyAggregationChartProps) {
   const chartData = React.useMemo((): ChartDataItem[] => {
     if (!data || data.length === 0) return [];
     return data
       .map((agg) => ({
-        weekLabel: `W${agg.weekNumber} (${formatDate(agg.startDate)})`, // Example label
+        weekLabel: `W${agg.weekNumber} (${formatDate(agg.startDate)})`, 
         timestamp: agg.startDate.getTime(),
         totalDownloadedMB: parseFloat(agg.totalDownloadedMB.toFixed(2)),
         totalUploadedMB: parseFloat(agg.totalUploadedMB.toFixed(2)),
-        totalDurationSeconds: agg.totalDurationSeconds, // Ensure this is included
+        totalDurationSeconds: agg.totalDurationSeconds,
+        startDate: agg.startDate,
+        endDate: agg.endDate,
       }))
-      .sort((a, b) => a.timestamp - b.timestamp); // Sort by date ascending for chart
+      .sort((a, b) => a.timestamp - b.timestamp); 
   }, [data]);
 
   if (!chartData || chartData.length === 0) {
@@ -69,13 +75,18 @@ export function WeeklyAggregationChart({ data, chartTitlePrefix = "" }: WeeklyAg
       const dataPoint: ChartDataItem = payload[0].payload;
       const originalPoint = data.find(d => `W${d.weekNumber} (${formatDate(d.startDate)})` === label);
       const weekDisplay = originalPoint ? `${formatDate(originalPoint.startDate)} - ${formatDate(originalPoint.endDate)}` : label;
+      
+      const daysInWeek = originalPoint ? getDaysInPeriod(originalPoint.startDate, originalPoint.endDate) : 7;
+      const totalSecondsInPeriod = daysInWeek * SECONDS_IN_A_DAY;
+      const inactiveDurationSeconds = totalSecondsInPeriod - dataPoint.totalDurationSeconds;
 
       return (
         <div className="bg-background border p-3 shadow-lg rounded-md text-sm">
           <p className="font-bold mb-1">Week: {weekDisplay}</p>
           {dataPoint.totalDurationSeconds !== undefined && (
-             <p className="flex items-center"><Clock className="mr-1.5 h-4 w-4 text-muted-foreground" />Duration: {formatDurationFromSeconds(dataPoint.totalDurationSeconds, true)}</p>
+             <p className="flex items-center"><Clock className="mr-1.5 h-4 w-4 text-muted-foreground" />Active: {formatDurationFromSeconds(dataPoint.totalDurationSeconds, true)}</p>
           )}
+           <p className="flex items-center"><PowerOff className="mr-1.5 h-4 w-4 text-muted-foreground" />Inactive: {formatDurationFromSeconds(inactiveDurationSeconds > 0 ? inactiveDurationSeconds : 0, true)}</p>
           {payload.map((pld: any) => (
             <p key={pld.dataKey} style={{ color: pld.stroke }} className="flex items-center">
               {pld.dataKey === 'totalDownloadedMB' && <Download className="mr-1.5 h-4 w-4" />}

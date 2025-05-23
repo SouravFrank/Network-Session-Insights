@@ -3,12 +3,12 @@
 
 import * as React from "react";
 import type { RawMonthAggregation } from "@/lib/session-utils/types";
-import { formatDataSizeForDisplay, formatDurationFromSeconds } from "@/lib/session-utils/formatters";
+import { formatDataSizeForDisplay, formatDurationFromSeconds, getDaysInPeriod } from "@/lib/session-utils/formatters";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
 import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Tooltip as RechartsTooltip, Legend as RechartsLegend } from "recharts";
-import { BarChartBig, Download, Upload, Clock } from "lucide-react";
+import { BarChartBig, Download, Upload, Clock, PowerOff } from "lucide-react"; // Added PowerOff
 
 interface MonthlyAggregationChartProps {
   data: RawMonthAggregation[];
@@ -29,12 +29,16 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 type ChartDataItem = {
-  monthLabel: string; // "Mon YYYY" e.g. "Nov 2024"
-  timestamp: number; // Start date timestamp for sorting
+  monthLabel: string; 
+  timestamp: number; 
   totalDownloadedMB: number;
   totalUploadedMB: number;
-  totalDurationSeconds: number; // Added for tooltip
+  totalDurationSeconds: number; 
+  startDate: Date; // Keep original start and end dates
+  endDate: Date;
 };
+
+const SECONDS_IN_A_DAY = 86400;
 
 export function MonthlyAggregationChart({ data, chartTitlePrefix = "" }: MonthlyAggregationChartProps) {
   const chartData = React.useMemo((): ChartDataItem[] => {
@@ -45,9 +49,11 @@ export function MonthlyAggregationChart({ data, chartTitlePrefix = "" }: Monthly
         timestamp: agg.startDate.getTime(),
         totalDownloadedMB: parseFloat(agg.totalDownloadedMB.toFixed(2)),
         totalUploadedMB: parseFloat(agg.totalUploadedMB.toFixed(2)),
-        totalDurationSeconds: agg.totalDurationSeconds, // Ensure this is included
+        totalDurationSeconds: agg.totalDurationSeconds,
+        startDate: agg.startDate,
+        endDate: agg.endDate,
       }))
-      .sort((a, b) => a.timestamp - b.timestamp); // Sort by date ascending for chart
+      .sort((a, b) => a.timestamp - b.timestamp); 
   }, [data]);
 
   if (!chartData || chartData.length === 0) {
@@ -70,12 +76,17 @@ export function MonthlyAggregationChart({ data, chartTitlePrefix = "" }: Monthly
       const originalPoint = data.find(d => `${d.monthName.substring(0,3)} ${d.year}` === label);
       const monthDisplay = originalPoint ? `${originalPoint.monthName} ${originalPoint.year}` : label;
 
+      const daysInMonth = originalPoint ? getDaysInPeriod(originalPoint.startDate, originalPoint.endDate) : 30; // Fallback
+      const totalSecondsInPeriod = daysInMonth * SECONDS_IN_A_DAY;
+      const inactiveDurationSeconds = totalSecondsInPeriod - dataPoint.totalDurationSeconds;
+
       return (
         <div className="bg-background border p-3 shadow-lg rounded-md text-sm">
           <p className="font-bold mb-1">Month: {monthDisplay}</p>
           {dataPoint.totalDurationSeconds !== undefined && (
-             <p className="flex items-center"><Clock className="mr-1.5 h-4 w-4 text-muted-foreground" />Duration: {formatDurationFromSeconds(dataPoint.totalDurationSeconds, true)}</p>
+             <p className="flex items-center"><Clock className="mr-1.5 h-4 w-4 text-muted-foreground" />Active: {formatDurationFromSeconds(dataPoint.totalDurationSeconds, true)}</p>
           )}
+          <p className="flex items-center"><PowerOff className="mr-1.5 h-4 w-4 text-muted-foreground" />Inactive: {formatDurationFromSeconds(inactiveDurationSeconds > 0 ? inactiveDurationSeconds : 0, true)}</p>
           {payload.map((pld: any) => (
             <p key={pld.dataKey} style={{ color: pld.fill }} className="flex items-center">
               {pld.dataKey === 'totalDownloadedMB' && <Download className="mr-1.5 h-4 w-4" />}
