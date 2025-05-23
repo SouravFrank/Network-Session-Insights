@@ -54,56 +54,53 @@ const sessionDailyDatePresets: DatePreset[] = [
     }
   },
   { label: "Last 7 Days", getRange: () => ({ from: startOfDay(subDays(new Date(), 6)), to: endOfDay(new Date()) }) },
-  { label: "Last 14 Days", getRange: () => ({ from: startOfDay(subDays(new Date(), 13)), to: endOfDay(new Date()) }) },
   { label: "Last 30 Days", getRange: () => ({ from: startOfDay(subDays(new Date(), 29)), to: endOfDay(new Date()) }) },
-  { label: "This Week", getRange: () => ({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }) },
-  { label: "Last Week", getRange: () => {
+  { label: "This Week (Mon-Sun)", getRange: () => ({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }) },
+  { label: "Last Week (Mon-Sun)", getRange: () => {
       const lastWeekStart = startOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 });
       const lastWeekEnd = endOfWeek(subWeeks(new Date(), 1), { weekStartsOn: 1 });
       return { from: lastWeekStart, to: lastWeekEnd };
     }
   },
   { label: "This Month", getRange: () => ({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }) },
-  { label: "Last Month", getRange: () => {
-      const lastMonthStart = startOfMonth(subMonths(new Date(), 1));
-      const lastMonthEnd = endOfMonth(subMonths(new Date(), 1));
-      return { from: lastMonthStart, to: lastMonthEnd };
-    }
-  },
   { label: "Year to Date", getRange: () => ({ from: startOfYear(new Date()), to: endOfDay(new Date()) }) },
-  { label: "This Year", getRange: () => ({ from: startOfYear(new Date()), to: endOfYear(new Date()) }) },
-  { label: "Last Year", getRange: () => {
-      const lastYearStart = startOfYear(subYears(new Date(), 1));
-      const lastYearEnd = endOfYear(subYears(new Date(), 1));
-      return { from: lastYearStart, to: lastYearEnd };
-    }
-  },
 ];
 
 const weeklyDatePresets: DatePreset[] = [
-  { label: "This Week", getRange: () => ({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }) },
-  { label: "Last Week", getRange: () => { const lw = subWeeks(new Date(), 1); return { from: startOfWeek(lw, { weekStartsOn: 1 }), to: endOfWeek(lw, { weekStartsOn: 1 }) }; } },
   { label: "Last 4 Weeks", getRange: () => ({ from: startOfWeek(subWeeks(new Date(), 3), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }) },
-  { label: "Last 8 Weeks", getRange: () => ({ from: startOfWeek(subWeeks(new Date(), 7), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }) },
   { label: "Last 12 Weeks", getRange: () => ({ from: startOfWeek(subWeeks(new Date(), 11), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }) },
   { label: "This Quarter", getRange: () => ({ from: startOfQuarter(new Date()), to: endOfQuarter(new Date()) }) },
-  { label: "Last Quarter", getRange: () => { const lq = subQuarters(new Date(), 1); return { from: startOfQuarter(lq), to: endOfQuarter(lq) }; } },
-  { label: "Year to Date", getRange: () => ({ from: startOfYear(new Date()), to: endOfWeek(new Date(), {weekStartsOn: 1}) }) },
-  { label: "This Year", getRange: () => ({ from: startOfYear(new Date()), to: endOfYear(new Date()) }) },
-  { label: "Last Year", getRange: () => { const ly = subYears(new Date(), 1); return { from: startOfYear(ly), to: endOfYear(ly) }; } },
+  { label: "Last Quarter", getRange: () => { 
+      const lq = subQuarters(new Date(), 1); 
+      return { from: startOfQuarter(lq), to: endOfQuarter(lq) }; 
+    } 
+  },
+  { label: "Year to Date (Weekly)", getRange: () => ({ from: startOfYear(new Date()), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }) },
+  { label: "This Calendar Year", getRange: () => ({ from: startOfYear(new Date()), to: endOfYear(new Date()) }) },
+  { label: "Last Calendar Year", getRange: () => { 
+      const ly = subYears(new Date(), 1); 
+      return { from: startOfYear(ly), to: endOfYear(ly) }; 
+    } 
+  },
 ];
 
 const monthlyDatePresets: DatePreset[] = [
-  { label: "This Month", getRange: () => ({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }) },
-  { label: "Last Month", getRange: () => { const lm = subMonths(new Date(), 1); return { from: startOfMonth(lm), to: endOfMonth(lm) }; } },
   { label: "Last 3 Months", getRange: () => ({ from: startOfMonth(subMonths(new Date(), 2)), to: endOfMonth(new Date()) }) },
   { label: "Last 6 Months", getRange: () => ({ from: startOfMonth(subMonths(new Date(), 5)), to: endOfMonth(new Date()) }) },
   { label: "Last 12 Months", getRange: () => ({ from: startOfMonth(subMonths(new Date(), 11)), to: endOfMonth(new Date()) }) },
   { label: "This Quarter", getRange: () => ({ from: startOfQuarter(new Date()), to: endOfQuarter(new Date()) }) },
-  { label: "Last Quarter", getRange: () => { const lq = subQuarters(new Date(), 1); return { from: startOfQuarter(lq), to: endOfQuarter(lq) }; } },
-  { label: "Year to Date", getRange: () => ({ from: startOfYear(new Date()), to: endOfMonth(new Date()) }) },
-  { label: "This Year", getRange: () => ({ from: startOfYear(new Date()), to: endOfYear(new Date()) }) },
-  { label: "Last Year", getRange: () => { const ly = subYears(new Date(), 1); return { from: startOfYear(ly), to: endOfYear(ly) }; } },
+  { label: "Last Quarter", getRange: () => { 
+      const lq = subQuarters(new Date(), 1); 
+      return { from: startOfQuarter(lq), to: endOfQuarter(lq) }; 
+    } 
+  },
+  { label: "Year to Date (Monthly)", getRange: () => ({ from: startOfYear(new Date()), to: endOfMonth(new Date()) }) },
+  { label: "This Calendar Year", getRange: () => ({ from: startOfYear(new Date()), to: endOfYear(new Date()) }) },
+  { label: "Last Calendar Year", getRange: () => { 
+      const ly = subYears(new Date(), 1); 
+      return { from: startOfYear(ly), to: endOfYear(ly) }; 
+    } 
+  },
 ];
 
 
@@ -206,6 +203,8 @@ export default function SessionInsightsPage() {
             setCurrentDatePresets(monthlyDatePresets);
             break;
         default: 
+             // When no view is active yet, but data is loaded, show session/daily presets by default
+             // or choose a more generic set if preferred. For now, session/daily.
              setCurrentDatePresets(sessionDailyDatePresets); 
             break;
     }
@@ -267,6 +266,8 @@ export default function SessionInsightsPage() {
         const isBeforeTo = dateTo ? loginDate.getTime() <= endOfDay(dateTo).getTime() : true;
         return isAfterFrom && isBeforeTo;
       } catch (e) {
+        // This catch might be redundant if parseRawTextToSessions is robust,
+        // but good for defense if a bad date somehow gets into parsedSessions.
         console.warn("Error parsing loginTime during filtering:", e, session.loginTime);
         return false; 
       }
@@ -277,7 +278,7 @@ export default function SessionInsightsPage() {
         const sortedSessions = [...effectiveSessions].sort((a, b) => {
           try {
             return parseLoginTime(b.loginTime).getTime() - parseLoginTime(a.loginTime).getTime();
-          } catch (e) { return 0; }
+          } catch (e) { return 0; } // Should not happen if data is pre-validated
         });
         setFilteredSessionViewData(sortedSessions);
         setDailyAggregatedData(null);
@@ -303,12 +304,14 @@ export default function SessionInsightsPage() {
         setWeeklyAggregatedData(null);
       }
     } catch (error: any) {
+      // This primarily catches errors from aggregation functions if they throw
       console.error(`Error processing data for ${viewType} view:`, error);
       toast({
         variant: "destructive",
         title: `Error Processing Data for ${viewType || 'selected'} view`,
         description: error instanceof SessionDataParsingError ? error.message : "An unexpected error occurred.",
       });
+      // Clear specific data view on error
       if (viewType === 'session') setFilteredSessionViewData(null);
       if (viewType === 'daily') setDailyAggregatedData(null);
       if (viewType === 'weekly') setWeeklyAggregatedData(null);
@@ -319,11 +322,12 @@ export default function SessionInsightsPage() {
   };
 
   React.useEffect(() => {
-    if (activeView && (rawSessionData || parsedSessions)) { 
+    // This effect re-runs processing if dateFrom or dateTo changes AND an active view is selected.
+    if (activeView && (rawSessionData || parsedSessions)) { // Ensure data source is available
       processAndSetView(activeView);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateFrom, dateTo]);
+  }, [dateFrom, dateTo]); // Only re-run when date filters change. Raw data load has its own trigger.
 
 
   const handleAiAnalysis = async () => {
@@ -337,10 +341,14 @@ export default function SessionInsightsPage() {
     setMaintenanceSuggestion(null);
 
     try {
+      // AI analysis should ideally use the *parsed and validated* session data
+      // if transformations or summaries are needed before sending to AI.
+      // For now, using rawSessionData string as per current Genkit flow input.
+      // Consider passing a stringified version of `parsedSessions` or `effectiveSessions` if the AI benefits from structured, pre-filtered data.
       const usagePatterns = await analyzeUsagePatterns({ sessionData: rawSessionData });
       setAnalysisResult(usagePatterns);
 
-      const currentTime = new Date().toISOString();
+      const currentTime = new Date().toISOString(); // Use server-side or consistent time if crucial
       const scheduleSuggestion = await suggestMaintenanceSchedule({
         usagePatterns: `Peak Hours: ${usagePatterns.peakHours}, Quiet Hours: ${usagePatterns.quietHours}, Trends: ${usagePatterns.overallTrends}`,
         currentTime,
@@ -364,6 +372,7 @@ export default function SessionInsightsPage() {
     }
   };
   
+  // To avoid hydration mismatch for time, get client time in useEffect
   const [clientCurrentTime, setClientCurrentTime] = React.useState<string | null>(null);
   React.useEffect(() => {
     setClientCurrentTime(new Date().toLocaleTimeString());
@@ -372,8 +381,9 @@ export default function SessionInsightsPage() {
   const clearDateFilters = () => {
     setDateFrom(undefined);
     setDateTo(undefined);
+    // Re-process view with cleared filters if a view is active
     if (activeView && (rawSessionData || parsedSessions)) {
-        processAndSetView(activeView);
+        // processAndSetView will be called by the useEffect watching dateFrom/dateTo
     }
   };
 
@@ -381,6 +391,7 @@ export default function SessionInsightsPage() {
     const { from, to } = preset.getRange();
     setDateFrom(from);
     setDateTo(to);
+    // processAndSetView will be called by the useEffect watching dateFrom/dateTo
   };
 
   const renderViewContent = () => {
@@ -418,6 +429,7 @@ export default function SessionInsightsPage() {
       case 'weekly':
         if (!weeklyAggregatedData || weeklyAggregatedData.length === 0) return noDataFilteredMessage;
         return displayFormat === 'table' ? (
+          // Placeholder for WeeklyAggregationTable - using preformatted JSON for now
           <Card>
             <CardHeader><CardTitle>Weekly Aggregated Data</CardTitle></CardHeader>
             <CardContent><pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-[400px]">{JSON.stringify(weeklyAggregatedData.map(w => ({...w, startDate: formatDate(w.startDate), endDate: formatDate(w.endDate), totalDurationFormatted: formatDurationFromSeconds(w.totalDurationSeconds, true), totalDownloadedMB: w.totalDownloadedMB.toFixed(2), totalUploadedMB: w.totalUploadedMB.toFixed(2)})), null, 2)}</pre></CardContent>
@@ -426,13 +438,16 @@ export default function SessionInsightsPage() {
       case 'monthly':
         if (!monthlyAggregatedData || monthlyAggregatedData.length === 0) return noDataFilteredMessage;
         return displayFormat === 'table' ? (
+          // Placeholder for MonthlyAggregationTable - using preformatted JSON for now
           <Card>
             <CardHeader><CardTitle>Monthly Aggregated Data</CardTitle></CardHeader>
             <CardContent><pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-[400px]">{JSON.stringify(monthlyAggregatedData.map(m => ({...m, startDate: formatDate(m.startDate), endDate: formatDate(m.endDate), totalDurationFormatted: formatDurationFromSeconds(m.totalDurationSeconds, true), totalDownloadedMB: m.totalDownloadedMB.toFixed(2), totalUploadedMB: m.totalUploadedMB.toFixed(2)})), null, 2)}</pre></CardContent>
           </Card>
         ) : <MonthlyAggregationChart data={monthlyAggregatedData} />;
       default:
-        if (rawSessionData) {
+        // This case handles when data is loaded but no view is selected yet,
+        // or when no data is loaded at all.
+        if (rawSessionData) { // Data loaded, but no view selected
             return (
                 <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-muted-foreground/30 rounded-lg min-h-[300px] text-center">
                   <List className="h-12 w-12 text-muted-foreground mb-4" />
@@ -443,6 +458,7 @@ export default function SessionInsightsPage() {
                 </div>
             );
         }
+        // No data loaded yet
         return (
             <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-muted-foreground/30 rounded-lg min-h-[300px] text-center">
                 <FileJson className="h-12 w-12 text-muted-foreground mb-4" />
@@ -462,7 +478,7 @@ export default function SessionInsightsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-1 space-y-6">
            
-            {rawSessionData ? ( 
+            {rawSessionData ? ( // If data is loaded, show toggle for form visibility
               isDataInputVisible ? (
                 <>
                   <Button variant="outline" onClick={() => setIsDataInputVisible(false)} className="w-full">
@@ -478,14 +494,14 @@ export default function SessionInsightsPage() {
                   <Eye className="mr-2 h-4 w-4" /> Show Data Input
                 </Button>
               )
-            ) : ( 
+            ) : ( // If no data loaded, always show the form
               <DataInputForm 
                 onSubmit={handleDataLoadSubmit} 
                 isLoading={isLoadingView || isLoadingAi} 
               />
             )}
             
-            {rawSessionData && (
+            {rawSessionData && ( // Show view options only if data is loaded
               <Card className="shadow-lg">
                 <CardHeader>
                   <CardTitle>View Options & Filters</CardTitle>
@@ -532,8 +548,8 @@ export default function SessionInsightsPage() {
                     {currentDatePresets.length > 0 && (
                         <div className="space-y-2 pt-2">
                             <h4 className="text-sm font-medium text-muted-foreground">Date Presets:</h4>
-                            <ScrollArea className="w-full rounded-md max-h-48">
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-1">
+                            <ScrollArea className="w-full rounded-md max-h-48"> {/* Adjusted max-h for grid */}
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-1"> {/* Responsive grid */}
                                     {currentDatePresets.map((preset) => (
                                     <Button
                                         key={preset.label}
@@ -541,7 +557,7 @@ export default function SessionInsightsPage() {
                                         size="sm"
                                         onClick={() => applyDatePreset(preset)}
                                         disabled={isLoadingView || !rawSessionData}
-                                        className="text-xs"
+                                        className="text-xs" // Ensure text fits
                                     >
                                         {preset.label}
                                     </Button>
@@ -563,7 +579,7 @@ export default function SessionInsightsPage() {
                       </Button>
                     )}
 
-                    {activeView && (
+                    {activeView && ( // Show display format toggle only when a view is active
                         <div className="pt-4">
                             <p className="text-sm font-medium mb-1 text-center text-muted-foreground">Display Format:</p>
                             <Tabs defaultValue="chart" value={displayFormat} onValueChange={(value) => setDisplayFormat(value as DisplayFormat)} className="w-full">
