@@ -12,6 +12,7 @@ import { TrendingUp, Download, Upload } from "lucide-react";
 
 interface WeeklyAggregationChartProps {
   data: RawWeekAggregation[];
+  chartTitlePrefix?: string;
 }
 
 const chartConfig = {
@@ -34,7 +35,7 @@ type ChartDataItem = {
   totalUploadedMB: number;
 };
 
-export function WeeklyAggregationChart({ data }: WeeklyAggregationChartProps) {
+export function WeeklyAggregationChart({ data, chartTitlePrefix = "" }: WeeklyAggregationChartProps) {
   const chartData = React.useMemo((): ChartDataItem[] => {
     if (!data || data.length === 0) return [];
     return data
@@ -51,7 +52,7 @@ export function WeeklyAggregationChart({ data }: WeeklyAggregationChartProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Weekly Aggregation Chart</CardTitle>
+          <CardTitle>{chartTitlePrefix}Weekly Aggregation Chart</CardTitle>
           <CardDescription>No weekly aggregated data to display.</CardDescription>
         </CardHeader>
         <CardContent className="flex items-center justify-center min-h-[300px]">
@@ -88,7 +89,7 @@ export function WeeklyAggregationChart({ data }: WeeklyAggregationChartProps) {
       <CardHeader>
         <div className="flex items-center gap-2">
           <TrendingUp className="h-6 w-6 text-primary" />
-          <CardTitle>Weekly Aggregated Data Trends</CardTitle>
+          <CardTitle>{chartTitlePrefix}Weekly Aggregated Data Trends</CardTitle>
         </div>
         <CardDescription>
           Weekly total download and upload volume trends.

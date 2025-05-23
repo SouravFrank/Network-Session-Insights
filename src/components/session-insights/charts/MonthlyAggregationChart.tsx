@@ -12,6 +12,7 @@ import { BarChartBig, Download, Upload } from "lucide-react"; // Changed icon
 
 interface MonthlyAggregationChartProps {
   data: RawMonthAggregation[];
+  chartTitlePrefix?: string;
 }
 
 const chartConfig = {
@@ -34,7 +35,7 @@ type ChartDataItem = {
   totalUploadedMB: number;
 };
 
-export function MonthlyAggregationChart({ data }: MonthlyAggregationChartProps) {
+export function MonthlyAggregationChart({ data, chartTitlePrefix = "" }: MonthlyAggregationChartProps) {
   const chartData = React.useMemo((): ChartDataItem[] => {
     if (!data || data.length === 0) return [];
     return data
@@ -51,7 +52,7 @@ export function MonthlyAggregationChart({ data }: MonthlyAggregationChartProps) 
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Monthly Aggregation Chart</CardTitle>
+          <CardTitle>{chartTitlePrefix}Monthly Aggregation Chart</CardTitle>
           <CardDescription>No monthly aggregated data to display.</CardDescription>
         </CardHeader>
         <CardContent className="flex items-center justify-center min-h-[300px]">
@@ -87,7 +88,7 @@ export function MonthlyAggregationChart({ data }: MonthlyAggregationChartProps) 
       <CardHeader>
         <div className="flex items-center gap-2">
           <BarChartBig className="h-6 w-6 text-primary" /> {/* Changed icon */}
-          <CardTitle>Monthly Aggregated Data</CardTitle> {/* Changed title wording */}
+          <CardTitle>{chartTitlePrefix}Monthly Aggregated Data</CardTitle> {/* Changed title wording */}
         </div>
         <CardDescription>
           Monthly total download and upload volumes. {/* Changed description wording */}

@@ -18,12 +18,12 @@ import { analyzeUsagePatterns, type AnalyzeUsagePatternsOutput } from "@/ai/flow
 import { suggestMaintenanceSchedule, type SuggestMaintenanceScheduleOutput } from "@/ai/flows/suggest-maintenance-schedule";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Sparkles, List, CalendarDays, CalendarRange, Calendar as CalendarIconLucide, BarChart2, TableIcon, Info, FilterX, FileJson, Eye, EyeOff } from "lucide-react";
+import { Loader2, Sparkles, List, CalendarDays, CalendarRange, Calendar as CalendarIconLucide, BarChart2, TableIcon, Info, FilterX, FileJson, Eye, EyeOff, Zap } from "lucide-react";
 import type { SessionData, RawDayAggregation, RawWeekAggregation, RawMonthAggregation } from "@/lib/session-utils/types";
 import { SessionDataParsingError } from "@/lib/session-utils/types";
 import { parseLoginTime, parseSessionDurationToSeconds } from "@/lib/session-utils/parsers";
@@ -33,12 +33,13 @@ import {
   startOfDay, endOfDay, subDays, 
   startOfWeek, endOfWeek, subWeeks,
   startOfMonth, endOfMonth, subMonths,
-  startOfYear, // endOfYear removed as "This Calendar Year" preset is being removed for some views
+  startOfYear, subYears, endOfYear, 
   startOfQuarter, endOfQuarter, subQuarters
 } from 'date-fns';
 
 
 type ActiveView = 'session' | 'daily' | 'weekly' | 'monthly' | null;
+type ActiveViewNotNull = 'session' | 'daily' | 'weekly' | 'monthly';
 type DisplayFormat = 'table' | 'chart';
 
 interface DatePreset {
@@ -76,10 +77,9 @@ const weeklyDatePresets: DatePreset[] = [
     } 
   },
   { label: "Year to Date (Weekly)", getRange: () => ({ from: startOfYear(new Date()), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }) },
-  // Removed "This Calendar Year"
   { label: "Last Calendar Year", getRange: () => { 
       const ly = subYears(new Date(), 1); 
-      return { from: startOfYear(ly), to: endOfYear(ly) }; // endOfYear still needed here
+      return { from: startOfYear(ly), to: endOfYear(ly) };
     } 
   },
 ];
@@ -95,13 +95,49 @@ const monthlyDatePresets: DatePreset[] = [
     } 
   },
   { label: "Year to Date (Monthly)", getRange: () => ({ from: startOfYear(new Date()), to: endOfMonth(new Date()) }) },
-  // Removed "This Calendar Year"
   { label: "Last Calendar Year", getRange: () => { 
       const ly = subYears(new Date(), 1); 
-      return { from: startOfYear(ly), to: endOfYear(ly) }; // endOfYear still needed here
+      return { from: startOfYear(ly), to: endOfYear(ly) };
     } 
   },
 ];
+
+interface SmartFilterPresetConfig {
+  label: string;
+  type: 'TOP_N'; // For now, only TOP_N, can be expanded
+  nValue: number;
+  metric:
+    | 'totalUsage' // download + upload
+    | 'download'
+    | 'upload'
+    | 'duration'
+    | 'sessionCount'; // For aggregated views
+  sortDirection: 'desc' | 'asc'; // desc for MAX, asc for MIN
+  description?: string;
+}
+
+const smartFilterPresetsByView: Record<ActiveViewNotNull, SmartFilterPresetConfig[]> = {
+  session: [
+    { label: "Top 5 Sessions (Max Download)", type: 'TOP_N', nValue: 5, metric: 'download', sortDirection: 'desc', description: "Sessions with the most data downloaded." },
+    { label: "Top 5 Sessions (Longest Duration)", type: 'TOP_N', nValue: 5, metric: 'duration', sortDirection: 'desc', description: "Sessions that lasted the longest." },
+    { label: "Top 5 Sessions (Max Upload)", type: 'TOP_N', nValue: 5, metric: 'upload', sortDirection: 'desc', description: "Sessions with the most data uploaded." },
+  ],
+  daily: [
+    { label: "Top 5 Days (Max Total Usage)", type: 'TOP_N', nValue: 5, metric: 'totalUsage', sortDirection: 'desc', description: "Days with the highest combined download and upload." },
+    { label: "Top 3 Days (Max Total Usage)", type: 'TOP_N', nValue: 3, metric: 'totalUsage', sortDirection: 'desc', description: "Top 3 days with the highest combined download and upload." },
+    { label: "Top 5 Days (Min Total Usage)", type: 'TOP_N', nValue: 5, metric: 'totalUsage', sortDirection: 'asc', description: "Days with the lowest combined download and upload." },
+    { label: "Top 5 Days (Max Download)", type: 'TOP_N', nValue: 5, metric: 'download', sortDirection: 'desc', description: "Days with the most data downloaded." },
+    { label: "Top 5 Days (Longest Duration)", type: 'TOP_N', nValue: 5, metric: 'duration', sortDirection: 'desc', description: "Days with the longest total session duration." },
+  ],
+  weekly: [
+     { label: "Top 3 Weeks (Max Total Usage)", type: 'TOP_N', nValue: 3, metric: 'totalUsage', sortDirection: 'desc', description: "Weeks with the highest combined download and upload." },
+     { label: "Top 3 Weeks (Min Total Usage)", type: 'TOP_N', nValue: 3, metric: 'totalUsage', sortDirection: 'asc', description: "Weeks with the lowest combined download and upload." },
+  ],
+  monthly: [
+    { label: "Top 3 Months (Max Total Usage)", type: 'TOP_N', nValue: 3, metric: 'totalUsage', sortDirection: 'desc', description: "Months with the highest combined download and upload." },
+    { label: "Top 3 Months (Min Total Usage)", type: 'TOP_N', nValue: 3, metric: 'totalUsage', sortDirection: 'asc', description: "Months with the lowest combined download and upload." },
+  ],
+};
 
 
 function parseRawTextToSessions(rawData: string): SessionData[] {
@@ -180,17 +216,27 @@ export default function SessionInsightsPage() {
   const [currentDatePresets, setCurrentDatePresets] = React.useState<DatePreset[]>([]);
   const [isDataInputVisible, setIsDataInputVisible] = React.useState(true);
 
-
   const [analysisResult, setAnalysisResult] = React.useState<AnalyzeUsagePatternsOutput | null>(null);
   const [maintenanceSuggestion, setMaintenanceSuggestion] = React.useState<SuggestMaintenanceScheduleOutput | null>(null);
   const [isLoadingAi, setIsLoadingAi] = React.useState(false);
   const { toast } = useToast();
+
+  // Smart Filters State
+  const [isLoadingSmartFilters, setIsLoadingSmartFilters] = React.useState(false);
+  const [showSmartFiltersUI, setShowSmartFiltersUI] = React.useState(false);
+  const [smartFilteredDisplayData, setSmartFilteredDisplayData] = React.useState<any[] | null>(null);
+  const [activeSmartFilterLabel, setActiveSmartFilterLabel] = React.useState<string | null>(null);
+
 
   React.useEffect(() => {
     if (!rawSessionData) {
         setCurrentDatePresets([]); 
         return;
     }
+    // Clear smart filter if view changes
+    setSmartFilteredDisplayData(null);
+    setActiveSmartFilterLabel(null);
+
     switch (activeView) {
         case 'session':
         case 'daily':
@@ -221,7 +267,10 @@ export default function SessionInsightsPage() {
     setDisplayFormat('chart');
     setDateFrom(undefined);
     setDateTo(undefined);
-    setIsDataInputVisible(false); 
+    setIsDataInputVisible(false);
+    setShowSmartFiltersUI(false);
+    setSmartFilteredDisplayData(null);
+    setActiveSmartFilterLabel(null);
     toast({
         title: "Data Loaded",
         description: "Session data is ready. Select a view (Session, Daily, etc.) to process and display.",
@@ -236,6 +285,8 @@ export default function SessionInsightsPage() {
     
     setIsLoadingView(true);
     setActiveView(viewType);
+    setSmartFilteredDisplayData(null); // Clear smart filter when view changes
+    setActiveSmartFilterLabel(null);
 
     let currentAllParsedSessions = parsedSessions;
 
@@ -369,62 +420,144 @@ export default function SessionInsightsPage() {
   const clearDateFilters = () => {
     setDateFrom(undefined);
     setDateTo(undefined);
+    // Clear smart filter when date filters change
+    setSmartFilteredDisplayData(null);
+    setActiveSmartFilterLabel(null);
   };
 
   const applyDatePreset = (preset: DatePreset) => {
     const { from, to } = preset.getRange();
     setDateFrom(from);
     setDateTo(to);
+    // Clear smart filter when date filters change
+    setSmartFilteredDisplayData(null);
+    setActiveSmartFilterLabel(null);
   };
+
+  const handleActivateSmartFilters = () => {
+    if (!activeView) {
+      toast({ variant: "destructive", title: "Select a View", description: "Please select an aggregation level (Session, Daily, etc.) before using smart filters." });
+      return;
+    }
+    setIsLoadingSmartFilters(true);
+    // Simulate a brief delay for UI transition if needed, or directly show
+    setTimeout(() => {
+      setShowSmartFiltersUI(true);
+      setIsLoadingSmartFilters(false);
+    }, 200); // Optional: short delay for smoother UI
+  };
+
+  const handleSmartFilterApply = (config: SmartFilterPresetConfig) => {
+    if (!activeView) return; // Should be guarded by handleActivateSmartFilters
+    setIsLoadingView(true); // Use main view loader
+    setActiveSmartFilterLabel(config.label);
+
+    let sourceData: any[] = [];
+    if (activeView === 'session') sourceData = filteredSessionViewData || [];
+    else if (activeView === 'daily') sourceData = dailyAggregatedData || [];
+    else if (activeView === 'weekly') sourceData = weeklyAggregatedData || [];
+    else if (activeView === 'monthly') sourceData = monthlyAggregatedData || [];
+
+    if (sourceData.length === 0) {
+        toast({ title: "No Data for Smart Filter", description: "The current view has no data to apply smart filters on.", variant: "default" });
+        setSmartFilteredDisplayData([]);
+        setIsLoadingView(false);
+        return;
+    }
+    
+    const getMetricValue = (item: any): number => {
+      switch (config.metric) {
+        case 'download':
+          return activeView === 'session' ? item.download : item.totalDownloadedMB;
+        case 'upload':
+          return activeView === 'session' ? item.upload : item.totalUploadedMB;
+        case 'totalUsage':
+          return activeView === 'session' 
+            ? item.download + item.upload 
+            : item.totalDownloadedMB + item.totalUploadedMB;
+        case 'duration':
+          return activeView === 'session' 
+            ? parseSessionDurationToSeconds(item.sessionTime) 
+            : item.totalDurationSeconds;
+        case 'sessionCount':
+            return activeView !== 'session' ? item.sessionCount : 0; // Only for aggregated views
+        default:
+          return 0;
+      }
+    };
+
+    const sortedData = [...sourceData].sort((a, b) => {
+      const valA = getMetricValue(a);
+      const valB = getMetricValue(b);
+      return config.sortDirection === 'desc' ? valB - valA : valA - valB;
+    });
+
+    setSmartFilteredDisplayData(sortedData.slice(0, config.nValue));
+    setIsLoadingView(false);
+  };
+
 
   const renderViewContent = () => {
     if (isLoadingView) {
       return (
         <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-primary/30 rounded-lg min-h-[300px]">
           <Loader2 className="h-16 w-16 text-primary animate-spin mb-6" />
-          <p className="text-xl font-medium text-primary mb-1">Processing Data</p>
+          <p className="text-xl font-medium text-primary mb-1">
+            {activeSmartFilterLabel ? `Applying: ${activeSmartFilterLabel}` : "Processing Data"}
+          </p>
           <p className="text-muted-foreground">Crunching the numbers, please wait...</p>
         </div>
       );
     }
     
+    const dataToDisplay = smartFilteredDisplayData || (
+        activeView === 'session' ? filteredSessionViewData :
+        activeView === 'daily' ? dailyAggregatedData :
+        activeView === 'weekly' ? weeklyAggregatedData :
+        activeView === 'monthly' ? monthlyAggregatedData :
+        null
+    );
+
     const noDataFilteredMessage = (
         <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-muted-foreground/30 rounded-lg min-h-[300px] text-center">
           <Info className="h-12 w-12 text-muted-foreground mb-4" />
           <p className="text-lg font-medium text-muted-foreground mb-1">No Data to Display</p>
           <p className="text-sm text-muted-foreground">
-            No sessions match your current filters or selected view. Try adjusting the date range or select a different view.
+            {activeSmartFilterLabel ? `The smart filter "${activeSmartFilterLabel}" yielded no results for the current selection.` : 
+            "No sessions match your current filters or selected view. Try adjusting the date range or select a different view."}
           </p>
         </div>
     );
 
+    const chartTitlePrefix = activeSmartFilterLabel ? `${activeSmartFilterLabel} - ` : "";
+
     switch (activeView) {
       case 'session':
-        if (!filteredSessionViewData || filteredSessionViewData.length === 0) return noDataFilteredMessage;
+        if (!dataToDisplay || dataToDisplay.length === 0) return noDataFilteredMessage;
         return displayFormat === 'table' ? 
-               <SessionDataTable sessions={filteredSessionViewData} /> : 
-               <SessionTimelineChart sessions={filteredSessionViewData} />;
+               <SessionDataTable sessions={dataToDisplay as SessionData[]} /> : 
+               <SessionTimelineChart sessions={dataToDisplay as SessionData[]} />;
       case 'daily':
-        if (!dailyAggregatedData || dailyAggregatedData.length === 0) return noDataFilteredMessage;
+        if (!dataToDisplay || dataToDisplay.length === 0) return noDataFilteredMessage;
         return displayFormat === 'table' ? (
-          <DailyAggregationTable data={dailyAggregatedData} />
-        ) : <DailyAggregationChart data={dailyAggregatedData} />;
+          <DailyAggregationTable data={dataToDisplay as RawDayAggregation[]} />
+        ) : <DailyAggregationChart data={dataToDisplay as RawDayAggregation[]} chartTitlePrefix={chartTitlePrefix}/>;
       case 'weekly':
-        if (!weeklyAggregatedData || weeklyAggregatedData.length === 0) return noDataFilteredMessage;
+        if (!dataToDisplay || dataToDisplay.length === 0) return noDataFilteredMessage;
         return displayFormat === 'table' ? (
           <Card>
-            <CardHeader><CardTitle>Weekly Aggregated Data</CardTitle></CardHeader>
-            <CardContent><pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-[400px]">{JSON.stringify(weeklyAggregatedData.map(w => ({...w, startDate: formatDate(w.startDate), endDate: formatDate(w.endDate), totalDurationFormatted: formatDurationFromSeconds(w.totalDurationSeconds, true), totalDownloadedMB: w.totalDownloadedMB.toFixed(2), totalUploadedMB: w.totalUploadedMB.toFixed(2)})), null, 2)}</pre></CardContent>
+            <CardHeader><CardTitle>{chartTitlePrefix}Weekly Aggregated Data</CardTitle></CardHeader>
+            <CardContent><pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-[400px]">{JSON.stringify((dataToDisplay as RawWeekAggregation[]).map(w => ({...w, startDate: formatDate(w.startDate), endDate: formatDate(w.endDate), totalDurationFormatted: formatDurationFromSeconds(w.totalDurationSeconds, true), totalDownloadedMB: w.totalDownloadedMB.toFixed(2), totalUploadedMB: w.totalUploadedMB.toFixed(2)})), null, 2)}</pre></CardContent>
           </Card>
-        ) : <WeeklyAggregationChart data={weeklyAggregatedData} />;
+        ) : <WeeklyAggregationChart data={dataToDisplay as RawWeekAggregation[]} chartTitlePrefix={chartTitlePrefix}/>;
       case 'monthly':
-        if (!monthlyAggregatedData || monthlyAggregatedData.length === 0) return noDataFilteredMessage;
+        if (!dataToDisplay || dataToDisplay.length === 0) return noDataFilteredMessage;
         return displayFormat === 'table' ? (
           <Card>
-            <CardHeader><CardTitle>Monthly Aggregated Data</CardTitle></CardHeader>
-            <CardContent><pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-[400px]">{JSON.stringify(monthlyAggregatedData.map(m => ({...m, startDate: formatDate(m.startDate), endDate: formatDate(m.endDate), totalDurationFormatted: formatDurationFromSeconds(m.totalDurationSeconds, true), totalDownloadedMB: m.totalDownloadedMB.toFixed(2), totalUploadedMB: m.totalUploadedMB.toFixed(2)})), null, 2)}</pre></CardContent>
+            <CardHeader><CardTitle>{chartTitlePrefix}Monthly Aggregated Data</CardTitle></CardHeader>
+            <CardContent><pre className="text-xs bg-muted p-2 rounded overflow-auto max-h-[400px]">{JSON.stringify((dataToDisplay as RawMonthAggregation[]).map(m => ({...m, startDate: formatDate(m.startDate), endDate: formatDate(m.endDate), totalDurationFormatted: formatDurationFromSeconds(m.totalDurationSeconds, true), totalDownloadedMB: m.totalDownloadedMB.toFixed(2), totalUploadedMB: m.totalUploadedMB.toFixed(2)})), null, 2)}</pre></CardContent>
           </Card>
-        ) : <MonthlyAggregationChart data={monthlyAggregatedData} />;
+        ) : <MonthlyAggregationChart data={dataToDisplay as RawMonthAggregation[]} chartTitlePrefix={chartTitlePrefix} />;
       default:
         if (rawSessionData) { 
             return (
@@ -464,7 +597,7 @@ export default function SessionInsightsPage() {
                   </Button>
                   <DataInputForm 
                     onSubmit={handleDataLoadSubmit} 
-                    isLoading={isLoadingView || isLoadingAi} 
+                    isLoading={isLoadingView || isLoadingAi || isLoadingSmartFilters} 
                   />
                 </>
               ) : (
@@ -475,7 +608,7 @@ export default function SessionInsightsPage() {
             ) : ( 
               <DataInputForm 
                 onSubmit={handleDataLoadSubmit} 
-                isLoading={isLoadingView || isLoadingAi} 
+                isLoading={isLoadingView || isLoadingAi || isLoadingSmartFilters} 
               />
             )}
             
@@ -526,7 +659,7 @@ export default function SessionInsightsPage() {
                     {currentDatePresets.length > 0 && (
                         <div className="space-y-2 pt-2">
                             <h4 className="text-sm font-medium text-muted-foreground">Date Presets:</h4>
-                            <ScrollArea className="w-full rounded-md max-h-48"> 
+                            <ScrollArea className={`w-full rounded-md ${showSmartFiltersUI ? 'max-h-20' : 'max-h-48'} transition-all duration-300`}> 
                                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-1"> 
                                     {currentDatePresets.map((preset) => (
                                     <Button
@@ -557,6 +690,34 @@ export default function SessionInsightsPage() {
                       </Button>
                     )}
 
+                    {/* Smart Filters Section */}
+                    {showSmartFiltersUI && activeView && smartFilterPresetsByView[activeView as ActiveViewNotNull] && (
+                      <Card className="mt-4 border-primary/50">
+                        <CardHeader className="pb-2 pt-4">
+                          <CardTitle className="text-base flex items-center gap-2"><Zap className="h-5 w-5 text-primary"/>Smart Filters</CardTitle>
+                          <CardDescription className="text-xs">Apply data-driven filters to the current view & date range.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="pt-2">
+                          <div className="grid grid-cols-1 gap-2">
+                            {smartFilterPresetsByView[activeView as ActiveViewNotNull].map(sfPreset => (
+                              <Button
+                                key={sfPreset.label}
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleSmartFilterApply(sfPreset)}
+                                disabled={isLoadingView}
+                                className="text-xs justify-start"
+                                title={sfPreset.description}
+                              >
+                                {sfPreset.label}
+                              </Button>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+
+
                     {activeView && ( 
                         <div className="pt-4">
                             <p className="text-sm font-medium mb-1 text-center text-muted-foreground">Display Format:</p>
@@ -568,6 +729,24 @@ export default function SessionInsightsPage() {
                             </Tabs>
                         </div>
                     )}
+                   <Button 
+                        onClick={handleActivateSmartFilters}
+                        disabled={isLoadingSmartFilters || !rawSessionData || !activeView}
+                        className="w-full mt-4"
+                        variant="outline"
+                    >
+                        {isLoadingSmartFilters ? (
+                            <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Loading Smart Filters...</>
+                        ) : (
+                            <><Zap className="mr-2 h-4 w-4" />{showSmartFiltersUI ? "Hide Smart Filters" : "Use Smart Filters"}</>
+                        )}
+                    </Button>
+                    {showSmartFiltersUI && 
+                        <Button variant="outline" size="sm" className="w-full text-xs mt-1" onClick={() => {setShowSmartFiltersUI(false); setSmartFilteredDisplayData(null); setActiveSmartFilterLabel(null);}}>
+                            Clear Smart Filter & View Options
+                        </Button>
+                    }
+
                   <Button 
                       onClick={handleAiAnalysis} 
                       disabled={isLoadingAi || !rawSessionData}
@@ -617,6 +796,3 @@ export default function SessionInsightsPage() {
     </div>
   );
 }
-
-
-    

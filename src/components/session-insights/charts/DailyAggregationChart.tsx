@@ -12,6 +12,7 @@ import { TrendingUp, Download, Upload } from "lucide-react"; // Changed icon
 
 interface DailyAggregationChartProps {
   data: RawDayAggregation[];
+  chartTitlePrefix?: string;
 }
 
 const chartConfig = {
@@ -34,7 +35,7 @@ type ChartDataItem = {
   totalUploadedMB: number;
 };
 
-export function DailyAggregationChart({ data }: DailyAggregationChartProps) {
+export function DailyAggregationChart({ data, chartTitlePrefix = "" }: DailyAggregationChartProps) {
   const chartData = React.useMemo((): ChartDataItem[] => {
     if (!data || data.length === 0) return [];
     return data
@@ -51,7 +52,7 @@ export function DailyAggregationChart({ data }: DailyAggregationChartProps) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Daily Aggregation Chart</CardTitle>
+          <CardTitle>{chartTitlePrefix}Daily Aggregation Chart</CardTitle>
           <CardDescription>No daily aggregated data to display.</CardDescription>
         </CardHeader>
         <CardContent className="flex items-center justify-center min-h-[300px]">
@@ -84,7 +85,7 @@ export function DailyAggregationChart({ data }: DailyAggregationChartProps) {
       <CardHeader>
         <div className="flex items-center gap-2">
           <TrendingUp className="h-6 w-6 text-primary" /> {/* Changed icon */}
-          <CardTitle>Daily Aggregated Data Trends</CardTitle> {/* Changed title wording */}
+          <CardTitle>{chartTitlePrefix}Daily Aggregated Data Trends</CardTitle> {/* Changed title wording */}
         </div>
         <CardDescription>
           Daily total download and upload volume trends. {/* Changed description wording */}
@@ -128,7 +129,7 @@ export function DailyAggregationChart({ data }: DailyAggregationChartProps) {
               activeDot={{ r: 6 }}
               name={chartConfig.totalDownloadedMB.label}
             />
-            <Line // Changed from Bar to Line
+            <Line // Changed from Line to Line
               type="monotone"
               dataKey="totalUploadedMB"
               stroke="var(--color-totalUploadedMB)" // Used stroke instead of fill
