@@ -7,8 +7,8 @@ import { formatDataSizeForDisplay } from "@/lib/session-utils/formatters";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
-import { LineChart, CartesianGrid, XAxis, YAxis, Line, Tooltip as RechartsTooltip, Legend as RechartsLegend } from "recharts";
-import { CalendarCheck, Download, Upload } from "lucide-react"; // Changed icon
+import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Tooltip as RechartsTooltip, Legend as RechartsLegend } from "recharts"; // Changed Line to Bar
+import { BarChartBig, Download, Upload } from "lucide-react"; // Changed icon
 
 interface MonthlyAggregationChartProps {
   data: RawMonthAggregation[];
@@ -63,7 +63,6 @@ export function MonthlyAggregationChart({ data }: MonthlyAggregationChartProps) 
   
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
-      // Find original data point to get full month name if needed
       const originalPoint = data.find(d => `${d.monthName.substring(0,3)} ${d.year}` === label);
       const monthDisplay = originalPoint ? `${originalPoint.monthName} ${originalPoint.year}` : label;
 
@@ -71,7 +70,7 @@ export function MonthlyAggregationChart({ data }: MonthlyAggregationChartProps) 
         <div className="bg-background border p-3 shadow-lg rounded-md text-sm">
           <p className="font-bold mb-1">Month: {monthDisplay}</p>
           {payload.map((pld: any) => (
-            <p key={pld.dataKey} style={{ color: pld.stroke }} className="flex items-center">
+            <p key={pld.dataKey} style={{ color: pld.fill }} className="flex items-center"> {/* Changed pld.stroke to pld.fill for Bar */}
               {pld.dataKey === 'totalDownloadedMB' && <Download className="mr-1.5 h-4 w-4" />}
               {pld.dataKey === 'totalUploadedMB' && <Upload className="mr-1.5 h-4 w-4" />}
               {pld.name}: {formatDataSizeForDisplay(pld.value)}
@@ -87,16 +86,16 @@ export function MonthlyAggregationChart({ data }: MonthlyAggregationChartProps) 
     <Card className="shadow-lg">
       <CardHeader>
         <div className="flex items-center gap-2">
-          <CalendarCheck className="h-6 w-6 text-primary" />
-          <CardTitle>Monthly Aggregated Data Trends</CardTitle>
+          <BarChartBig className="h-6 w-6 text-primary" /> {/* Changed icon */}
+          <CardTitle>Monthly Aggregated Data</CardTitle> {/* Changed title wording */}
         </div>
         <CardDescription>
-          Monthly total download and upload volume trends.
+          Monthly total download and upload volumes. {/* Changed description wording */}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="min-h-[400px] w-full">
-          <LineChart
+          <BarChart // Changed from LineChart to BarChart
             accessibilityLayer
             data={chartData}
             margin={{
@@ -121,27 +120,21 @@ export function MonthlyAggregationChart({ data }: MonthlyAggregationChartProps) 
                 label={{ value: "Data (MB)", angle: -90, position: 'insideLeft', offset:10 }}
                 tickFormatter={(value) => formatDataSizeForDisplay(value,0)}
             />
-            <RechartsTooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }}/>
+            <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted) / 0.5)' }}/> {/* Changed cursor for bar chart */}
             <RechartsLegend content={<ChartLegendContent />} verticalAlign="top" wrapperStyle={{paddingBottom: "10px"}} />
-            <Line
-              type="monotone"
+            <Bar // Changed from Line to Bar
               dataKey="totalDownloadedMB"
-              stroke="var(--color-totalDownloadedMB)"
-              strokeWidth={2}
-              dot={{ r: 3 }}
-              activeDot={{ r: 6 }}
+              fill="var(--color-totalDownloadedMB)" // Used fill instead of stroke
+              radius={[4, 4, 0, 0]} // Bar specific prop
               name={chartConfig.totalDownloadedMB.label}
             />
-            <Line
-              type="monotone"
+            <Bar // Changed from Line to Bar
               dataKey="totalUploadedMB"
-              stroke="var(--color-totalUploadedMB)"
-              strokeWidth={2}
-              dot={{ r: 3 }}
-              activeDot={{ r: 6 }}
+              fill="var(--color-totalUploadedMB)" // Used fill instead of stroke
+              radius={[4, 4, 0, 0]} // Bar specific prop
               name={chartConfig.totalUploadedMB.label}
             />
-          </LineChart>
+          </BarChart>
         </ChartContainer>
       </CardContent>
     </Card>

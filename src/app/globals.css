@@ -32,11 +32,11 @@
     --input: 150 10% 92%;
     --ring: 0 96% 45%; /* Brighter/related Red for rings */
 
-    --chart-1: 12 76% 61%;
-    --chart-2: 173 58% 39%;
-    --chart-3: 197 37% 24%;
-    --chart-4: 43 74% 66%;
-    --chart-5: 27 87% 67%;
+    --chart-1: 0 85% 50%; /* Red shade 1 #e62e2e */
+    --chart-2: 15 80% 55%; /* Orange-red shade #f26a3d */
+    --chart-3: 345 70% 45%; /* Deep Pink-red shade #c93358 */
+    --chart-4: 0 50% 60%; /* Softer red shade #cc6666 */
+    --chart-5: 30 75% 50%; /* Orange shade #f08c30 */
     --radius: 0.5rem;
 
     /* Sidebar variables - kept as default, not actively used by this app design */
@@ -79,11 +79,11 @@
     --input: 240 5% 22%;
     --ring: 0 96% 45%; /* Brighter/related Red for rings */
 
-    --chart-1: 220 70% 50%;
-    --chart-2: 160 60% 45%;
-    --chart-3: 30 80% 55%;
-    --chart-4: 280 65% 60%;
-    --chart-5: 340 75% 55%;
+    --chart-1: 0 85% 60%; /* Brighter Red shade 1 #f34d4d */
+    --chart-2: 15 80% 65%; /* Brighter Orange-red shade #f67f58 */
+    --chart-3: 345 70% 55%; /* Brighter Deep Pink-red shade #de5074 */
+    --chart-4: 0 50% 70%; /* Lighter Softer red shade #d97f7f */
+    --chart-5: 30 75% 60%; /* Lighter Orange shade #f39e4d */
 
     /* Sidebar variables - dark theme */
     --sidebar-background: 240 5.9% 10%;

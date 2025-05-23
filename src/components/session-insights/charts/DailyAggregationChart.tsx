@@ -7,8 +7,8 @@ import { formatDate, formatDataSizeForDisplay } from "@/lib/session-utils/format
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
-import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Tooltip as RechartsTooltip, Legend as RechartsLegend } from "recharts";
-import { BarChartBig, Download, Upload } from "lucide-react";
+import { LineChart, CartesianGrid, XAxis, YAxis, Line, Tooltip as RechartsTooltip, Legend as RechartsLegend } from "recharts"; // Changed Bar to Line
+import { TrendingUp, Download, Upload } from "lucide-react"; // Changed icon
 
 interface DailyAggregationChartProps {
   data: RawDayAggregation[];
@@ -67,7 +67,7 @@ export function DailyAggregationChart({ data }: DailyAggregationChartProps) {
         <div className="bg-background border p-3 shadow-lg rounded-md text-sm">
           <p className="font-bold mb-1">Date: {label}</p>
           {payload.map((pld: any) => (
-            <p key={pld.dataKey} style={{ color: pld.fill }} className="flex items-center">
+            <p key={pld.dataKey} style={{ color: pld.stroke }} className="flex items-center"> {/* Changed pld.fill to pld.stroke for Line */}
               {pld.dataKey === 'totalDownloadedMB' && <Download className="mr-1.5 h-4 w-4" />}
               {pld.dataKey === 'totalUploadedMB' && <Upload className="mr-1.5 h-4 w-4" />}
               {pld.name}: {formatDataSizeForDisplay(pld.value)}
@@ -83,23 +83,23 @@ export function DailyAggregationChart({ data }: DailyAggregationChartProps) {
     <Card className="shadow-lg">
       <CardHeader>
         <div className="flex items-center gap-2">
-          <BarChartBig className="h-6 w-6 text-primary" />
-          <CardTitle>Daily Aggregated Data</CardTitle>
+          <TrendingUp className="h-6 w-6 text-primary" /> {/* Changed icon */}
+          <CardTitle>Daily Aggregated Data Trends</CardTitle> {/* Changed title wording */}
         </div>
         <CardDescription>
-          Daily total download and upload volumes.
+          Daily total download and upload volume trends. {/* Changed description wording */}
         </CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="min-h-[400px] w-full">
-          <BarChart
+          <LineChart // Changed from BarChart to LineChart
             accessibilityLayer
             data={chartData}
             margin={{
               top: 5,
               right: 20,
               left: 0,
-              bottom: chartData.length > 10 ? 50 : 5, // Increase bottom margin for angled labels
+              bottom: chartData.length > 10 ? 50 : 5, 
             }}
           >
             <CartesianGrid vertical={false} strokeDasharray="3 3" />
@@ -111,27 +111,33 @@ export function DailyAggregationChart({ data }: DailyAggregationChartProps) {
               angle={chartData.length > 10 ? -45 : 0}
               textAnchor={chartData.length > 10 ? "end" : "middle"}
               minTickGap={0}
-              interval={chartData.length > 20 ? Math.floor(chartData.length / 10) : 0} // Adjust interval for readability
+              interval={chartData.length > 20 ? Math.floor(chartData.length / 10) : 0} 
             />
             <YAxis 
                 label={{ value: "Data (MB)", angle: -90, position: 'insideLeft', offset:10 }}
                 tickFormatter={(value) => formatDataSizeForDisplay(value,0)}
             />
-            <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted) / 0.5)' }}/>
+            <RechartsTooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }}/> {/* Changed cursor for line chart */}
             <RechartsLegend content={<ChartLegendContent />} verticalAlign="top" wrapperStyle={{paddingBottom: "10px"}} />
-            <Bar
+            <Line // Changed from Bar to Line
+              type="monotone"
               dataKey="totalDownloadedMB"
-              fill="var(--color-totalDownloadedMB)"
-              radius={[4, 4, 0, 0]}
+              stroke="var(--color-totalDownloadedMB)" // Used stroke instead of fill
+              strokeWidth={2}
+              dot={{ r: 3 }}
+              activeDot={{ r: 6 }}
               name={chartConfig.totalDownloadedMB.label}
             />
-            <Bar
+            <Line // Changed from Bar to Line
+              type="monotone"
               dataKey="totalUploadedMB"
-              fill="var(--color-totalUploadedMB)"
-              radius={[4, 4, 0, 0]}
+              stroke="var(--color-totalUploadedMB)" // Used stroke instead of fill
+              strokeWidth={2}
+              dot={{ r: 3 }}
+              activeDot={{ r: 6 }}
               name={chartConfig.totalUploadedMB.label}
             />
-          </BarChart>
+          </LineChart>
         </ChartContainer>
       </CardContent>
     </Card>

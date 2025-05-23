@@ -176,7 +176,7 @@ export default function SessionInsightsPage() {
   
   const [activeView, setActiveView] = React.useState<ActiveView>(null);
   const [isLoadingView, setIsLoadingView] = React.useState(false);
-  const [displayFormat, setDisplayFormat] = React.useState<DisplayFormat>('table');
+  const [displayFormat, setDisplayFormat] = React.useState<DisplayFormat>('chart');
 
   const [dateFrom, setDateFrom] = React.useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = React.useState<Date | undefined>(undefined);
@@ -221,7 +221,7 @@ export default function SessionInsightsPage() {
     setAnalysisResult(null);
     setMaintenanceSuggestion(null);
     setActiveView(null); 
-    setDisplayFormat('table');
+    setDisplayFormat('chart');
     setDateFrom(undefined);
     setDateTo(undefined);
     setIsDataInputVisible(false); 
@@ -566,7 +566,7 @@ export default function SessionInsightsPage() {
                     {activeView && (
                         <div className="pt-4">
                             <p className="text-sm font-medium mb-1 text-center text-muted-foreground">Display Format:</p>
-                            <Tabs defaultValue="table" value={displayFormat} onValueChange={(value) => setDisplayFormat(value as DisplayFormat)} className="w-full">
+                            <Tabs defaultValue="chart" value={displayFormat} onValueChange={(value) => setDisplayFormat(value as DisplayFormat)} className="w-full">
                                 <TabsList className="grid w-full grid-cols-2">
                                 <TabsTrigger value="table" disabled={isLoadingView}><TableIcon className="mr-2 h-4 w-4"/>Table</TabsTrigger>
                                 <TabsTrigger value="chart" disabled={isLoadingView}><BarChart2 className="mr-2 h-4 w-4"/>Chart</TabsTrigger>
