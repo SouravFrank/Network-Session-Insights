@@ -3,12 +3,12 @@
 
 import * as React from "react";
 import type { RawWeekAggregation } from "@/lib/session-utils/types";
-import { formatDate, formatDataSizeForDisplay } from "@/lib/session-utils/formatters";
+import { formatDate, formatDataSizeForDisplay, formatDurationFromSeconds } from "@/lib/session-utils/formatters";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
 import { LineChart, CartesianGrid, XAxis, YAxis, Line, Tooltip as RechartsTooltip, Legend as RechartsLegend } from "recharts";
-import { TrendingUp, Download, Upload } from "lucide-react";
+import { TrendingUp, Download, Upload, Clock } from "lucide-react";
 
 interface WeeklyAggregationChartProps {
   data: RawWeekAggregation[];
@@ -33,6 +33,7 @@ type ChartDataItem = {
   timestamp: number; // Start date timestamp for sorting
   totalDownloadedMB: number;
   totalUploadedMB: number;
+  totalDurationSeconds: number; // Added for tooltip
 };
 
 export function WeeklyAggregationChart({ data, chartTitlePrefix = "" }: WeeklyAggregationChartProps) {
@@ -44,6 +45,7 @@ export function WeeklyAggregationChart({ data, chartTitlePrefix = "" }: WeeklyAg
         timestamp: agg.startDate.getTime(),
         totalDownloadedMB: parseFloat(agg.totalDownloadedMB.toFixed(2)),
         totalUploadedMB: parseFloat(agg.totalUploadedMB.toFixed(2)),
+        totalDurationSeconds: agg.totalDurationSeconds, // Ensure this is included
       }))
       .sort((a, b) => a.timestamp - b.timestamp); // Sort by date ascending for chart
   }, [data]);
@@ -64,13 +66,16 @@ export function WeeklyAggregationChart({ data, chartTitlePrefix = "" }: WeeklyAg
   
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
-      // Find original data point to get full week range if needed
+      const dataPoint: ChartDataItem = payload[0].payload;
       const originalPoint = data.find(d => `W${d.weekNumber} (${formatDate(d.startDate)})` === label);
       const weekDisplay = originalPoint ? `${formatDate(originalPoint.startDate)} - ${formatDate(originalPoint.endDate)}` : label;
 
       return (
         <div className="bg-background border p-3 shadow-lg rounded-md text-sm">
           <p className="font-bold mb-1">Week: {weekDisplay}</p>
+          {dataPoint.totalDurationSeconds !== undefined && (
+             <p className="flex items-center"><Clock className="mr-1.5 h-4 w-4 text-muted-foreground" />Duration: {formatDurationFromSeconds(dataPoint.totalDurationSeconds, true)}</p>
+          )}
           {payload.map((pld: any) => (
             <p key={pld.dataKey} style={{ color: pld.stroke }} className="flex items-center">
               {pld.dataKey === 'totalDownloadedMB' && <Download className="mr-1.5 h-4 w-4" />}

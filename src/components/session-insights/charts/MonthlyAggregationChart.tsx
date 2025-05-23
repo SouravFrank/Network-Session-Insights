@@ -3,12 +3,12 @@
 
 import * as React from "react";
 import type { RawMonthAggregation } from "@/lib/session-utils/types";
-import { formatDataSizeForDisplay } from "@/lib/session-utils/formatters";
+import { formatDataSizeForDisplay, formatDurationFromSeconds } from "@/lib/session-utils/formatters";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
-import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Tooltip as RechartsTooltip, Legend as RechartsLegend } from "recharts"; // Changed Line to Bar
-import { BarChartBig, Download, Upload } from "lucide-react"; // Changed icon
+import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Tooltip as RechartsTooltip, Legend as RechartsLegend } from "recharts";
+import { BarChartBig, Download, Upload, Clock } from "lucide-react";
 
 interface MonthlyAggregationChartProps {
   data: RawMonthAggregation[];
@@ -33,6 +33,7 @@ type ChartDataItem = {
   timestamp: number; // Start date timestamp for sorting
   totalDownloadedMB: number;
   totalUploadedMB: number;
+  totalDurationSeconds: number; // Added for tooltip
 };
 
 export function MonthlyAggregationChart({ data, chartTitlePrefix = "" }: MonthlyAggregationChartProps) {
@@ -44,6 +45,7 @@ export function MonthlyAggregationChart({ data, chartTitlePrefix = "" }: Monthly
         timestamp: agg.startDate.getTime(),
         totalDownloadedMB: parseFloat(agg.totalDownloadedMB.toFixed(2)),
         totalUploadedMB: parseFloat(agg.totalUploadedMB.toFixed(2)),
+        totalDurationSeconds: agg.totalDurationSeconds, // Ensure this is included
       }))
       .sort((a, b) => a.timestamp - b.timestamp); // Sort by date ascending for chart
   }, [data]);
@@ -64,14 +66,18 @@ export function MonthlyAggregationChart({ data, chartTitlePrefix = "" }: Monthly
   
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
+      const dataPoint: ChartDataItem = payload[0].payload;
       const originalPoint = data.find(d => `${d.monthName.substring(0,3)} ${d.year}` === label);
       const monthDisplay = originalPoint ? `${originalPoint.monthName} ${originalPoint.year}` : label;
 
       return (
         <div className="bg-background border p-3 shadow-lg rounded-md text-sm">
           <p className="font-bold mb-1">Month: {monthDisplay}</p>
+          {dataPoint.totalDurationSeconds !== undefined && (
+             <p className="flex items-center"><Clock className="mr-1.5 h-4 w-4 text-muted-foreground" />Duration: {formatDurationFromSeconds(dataPoint.totalDurationSeconds, true)}</p>
+          )}
           {payload.map((pld: any) => (
-            <p key={pld.dataKey} style={{ color: pld.fill }} className="flex items-center"> {/* Changed pld.stroke to pld.fill for Bar */}
+            <p key={pld.dataKey} style={{ color: pld.fill }} className="flex items-center">
               {pld.dataKey === 'totalDownloadedMB' && <Download className="mr-1.5 h-4 w-4" />}
               {pld.dataKey === 'totalUploadedMB' && <Upload className="mr-1.5 h-4 w-4" />}
               {pld.name}: {formatDataSizeForDisplay(pld.value)}
@@ -87,16 +93,16 @@ export function MonthlyAggregationChart({ data, chartTitlePrefix = "" }: Monthly
     <Card className="shadow-lg">
       <CardHeader>
         <div className="flex items-center gap-2">
-          <BarChartBig className="h-6 w-6 text-primary" /> {/* Changed icon */}
-          <CardTitle>{chartTitlePrefix}Monthly Aggregated Data</CardTitle> {/* Changed title wording */}
+          <BarChartBig className="h-6 w-6 text-primary" />
+          <CardTitle>{chartTitlePrefix}Monthly Aggregated Data</CardTitle>
         </div>
         <CardDescription>
-          Monthly total download and upload volumes. {/* Changed description wording */}
+          Monthly total download and upload volumes.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="min-h-[400px] w-full">
-          <BarChart // Changed from LineChart to BarChart
+          <BarChart
             accessibilityLayer
             data={chartData}
             margin={{
@@ -121,18 +127,18 @@ export function MonthlyAggregationChart({ data, chartTitlePrefix = "" }: Monthly
                 label={{ value: "Data (MB)", angle: -90, position: 'insideLeft', offset:10 }}
                 tickFormatter={(value) => formatDataSizeForDisplay(value,0)}
             />
-            <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted) / 0.5)' }}/> {/* Changed cursor for bar chart */}
+            <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted) / 0.5)' }}/>
             <RechartsLegend content={<ChartLegendContent />} verticalAlign="top" wrapperStyle={{paddingBottom: "10px"}} />
-            <Bar // Changed from Line to Bar
+            <Bar
               dataKey="totalDownloadedMB"
-              fill="var(--color-totalDownloadedMB)" // Used fill instead of stroke
-              radius={[4, 4, 0, 0]} // Bar specific prop
+              fill="var(--color-totalDownloadedMB)"
+              radius={[4, 4, 0, 0]}
               name={chartConfig.totalDownloadedMB.label}
             />
-            <Bar // Changed from Line to Bar
+            <Bar
               dataKey="totalUploadedMB"
-              fill="var(--color-totalUploadedMB)" // Used fill instead of stroke
-              radius={[4, 4, 0, 0]} // Bar specific prop
+              fill="var(--color-totalUploadedMB)"
+              radius={[4, 4, 0, 0]}
               name={chartConfig.totalUploadedMB.label}
             />
           </BarChart>

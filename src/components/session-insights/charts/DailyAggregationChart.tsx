@@ -3,12 +3,12 @@
 
 import * as React from "react";
 import type { RawDayAggregation } from "@/lib/session-utils/types";
-import { formatDate, formatDataSizeForDisplay } from "@/lib/session-utils/formatters";
+import { formatDate, formatDataSizeForDisplay, formatDurationFromSeconds } from "@/lib/session-utils/formatters";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
 import type { ChartConfig } from "@/components/ui/chart";
-import { LineChart, CartesianGrid, XAxis, YAxis, Line, Tooltip as RechartsTooltip, Legend as RechartsLegend } from "recharts"; // Changed Bar to Line
-import { TrendingUp, Download, Upload } from "lucide-react"; // Changed icon
+import { LineChart, CartesianGrid, XAxis, YAxis, Line, Tooltip as RechartsTooltip, Legend as RechartsLegend } from "recharts";
+import { TrendingUp, Download, Upload, Clock } from "lucide-react";
 
 interface DailyAggregationChartProps {
   data: RawDayAggregation[];
@@ -33,6 +33,7 @@ type ChartDataItem = {
   timestamp: number; // Original timestamp for sorting
   totalDownloadedMB: number;
   totalUploadedMB: number;
+  totalDurationSeconds: number; // Added for tooltip
 };
 
 export function DailyAggregationChart({ data, chartTitlePrefix = "" }: DailyAggregationChartProps) {
@@ -44,6 +45,7 @@ export function DailyAggregationChart({ data, chartTitlePrefix = "" }: DailyAggr
         timestamp: agg.date.getTime(),
         totalDownloadedMB: parseFloat(agg.totalDownloadedMB.toFixed(2)),
         totalUploadedMB: parseFloat(agg.totalUploadedMB.toFixed(2)),
+        totalDurationSeconds: agg.totalDurationSeconds, // Ensure this is included
       }))
       .sort((a, b) => a.timestamp - b.timestamp); // Sort by date ascending for chart
   }, [data]);
@@ -64,11 +66,15 @@ export function DailyAggregationChart({ data, chartTitlePrefix = "" }: DailyAggr
   
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
+      const dataPoint: ChartDataItem = payload[0].payload;
       return (
         <div className="bg-background border p-3 shadow-lg rounded-md text-sm">
           <p className="font-bold mb-1">Date: {label}</p>
+          {dataPoint.totalDurationSeconds !== undefined && (
+             <p className="flex items-center"><Clock className="mr-1.5 h-4 w-4 text-muted-foreground" />Duration: {formatDurationFromSeconds(dataPoint.totalDurationSeconds, true)}</p>
+          )}
           {payload.map((pld: any) => (
-            <p key={pld.dataKey} style={{ color: pld.stroke }} className="flex items-center"> {/* Changed pld.fill to pld.stroke for Line */}
+            <p key={pld.dataKey} style={{ color: pld.stroke }} className="flex items-center">
               {pld.dataKey === 'totalDownloadedMB' && <Download className="mr-1.5 h-4 w-4" />}
               {pld.dataKey === 'totalUploadedMB' && <Upload className="mr-1.5 h-4 w-4" />}
               {pld.name}: {formatDataSizeForDisplay(pld.value)}
@@ -84,16 +90,16 @@ export function DailyAggregationChart({ data, chartTitlePrefix = "" }: DailyAggr
     <Card className="shadow-lg">
       <CardHeader>
         <div className="flex items-center gap-2">
-          <TrendingUp className="h-6 w-6 text-primary" /> {/* Changed icon */}
-          <CardTitle>{chartTitlePrefix}Daily Aggregated Data Trends</CardTitle> {/* Changed title wording */}
+          <TrendingUp className="h-6 w-6 text-primary" />
+          <CardTitle>{chartTitlePrefix}Daily Aggregated Data Trends</CardTitle>
         </div>
         <CardDescription>
-          Daily total download and upload volume trends. {/* Changed description wording */}
+          Daily total download and upload volume trends.
         </CardDescription>
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="min-h-[400px] w-full">
-          <LineChart // Changed from BarChart to LineChart
+          <LineChart
             accessibilityLayer
             data={chartData}
             margin={{
@@ -118,21 +124,21 @@ export function DailyAggregationChart({ data, chartTitlePrefix = "" }: DailyAggr
                 label={{ value: "Data (MB)", angle: -90, position: 'insideLeft', offset:10 }}
                 tickFormatter={(value) => formatDataSizeForDisplay(value,0)}
             />
-            <RechartsTooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }}/> {/* Changed cursor for line chart */}
+            <RechartsTooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }}/>
             <RechartsLegend content={<ChartLegendContent />} verticalAlign="top" wrapperStyle={{paddingBottom: "10px"}} />
-            <Line // Changed from Bar to Line
+            <Line
               type="monotone"
               dataKey="totalDownloadedMB"
-              stroke="var(--color-totalDownloadedMB)" // Used stroke instead of fill
+              stroke="var(--color-totalDownloadedMB)"
               strokeWidth={2}
               dot={{ r: 3 }}
               activeDot={{ r: 6 }}
               name={chartConfig.totalDownloadedMB.label}
             />
-            <Line // Changed from Line to Line
+            <Line
               type="monotone"
               dataKey="totalUploadedMB"
-              stroke="var(--color-totalUploadedMB)" // Used stroke instead of fill
+              stroke="var(--color-totalUploadedMB)"
               strokeWidth={2}
               dot={{ r: 3 }}
               activeDot={{ r: 6 }}
