@@ -13,8 +13,8 @@
     --popover: 150 14% 100%;
     --popover-foreground: 0 0% 15%;
 
-    --primary: 165 46% 50%; /* Saturated Teal #46B8A0 */
-    --primary-foreground: 165 40% 98%; /* Very Light/White */
+    --primary: 0 96% 38%; /* Deep Red #c00505 */
+    --primary-foreground: 0 0% 98%; /* Very Light/White for contrast with red */
 
     --secondary: 150 10% 90%; /* Slightly darker gray */
     --secondary-foreground: 0 0% 15%;
@@ -22,15 +22,15 @@
     --muted: 150 10% 88%; /* Muted gray */
     --muted-foreground: 0 0% 45%; /* Lighter gray for muted text */
 
-    --accent: 120 73% 75%; /* Pale Green #90EE90 */
-    --accent-foreground: 120 40% 25%; /* Darker Green for text on accent */
+    --accent: 120 73% 75%; /* Pale Green #90EE90 - Kept as is, might need review with new primary */
+    --accent-foreground: 120 40% 25%; /* Darker Green for text on accent - Kept as is */
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
 
     --border: 150 10% 85%;
     --input: 150 10% 92%;
-    --ring: 165 46% 55%; /* Primary color for rings, slightly lighter/brighter */
+    --ring: 0 96% 45%; /* Brighter/related Red for rings */
 
     --chart-1: 12 76% 61%;
     --chart-2: 173 58% 39%;
@@ -60,8 +60,8 @@
     --popover: 240 6% 10%;
     --popover-foreground: 0 0% 95%;
 
-    --primary: 165 46% 50%; /* Saturated Teal #46B8A0 - consistent */
-    --primary-foreground: 165 40% 98%;
+    --primary: 0 96% 38%; /* Deep Red #c00505 (consistent with light theme) */
+    --primary-foreground: 0 0% 98%; /* Very Light/White */
 
     --secondary: 240 5% 18%; /* Darker secondary */
     --secondary-foreground: 0 0% 95%;
@@ -69,15 +69,15 @@
     --muted: 240 5% 20%;
     --muted-foreground: 0 0% 65%;
 
-    --accent: 120 73% 75%; /* Pale Green #90EE90 - consistent */
-    --accent-foreground: 120 40% 25%;
+    --accent: 120 73% 75%; /* Pale Green #90EE90 - Kept as is */
+    --accent-foreground: 120 40% 25%; /* Darker Green for text on accent - Kept as is */
 
     --destructive: 0 70% 50%; /* Adjusted destructive for dark theme */
     --destructive-foreground: 0 0% 98%;
 
     --border: 240 5% 25%;
     --input: 240 5% 22%;
-    --ring: 165 46% 55%;
+    --ring: 0 96% 45%; /* Brighter/related Red for rings */
 
     --chart-1: 220 70% 50%;
     --chart-2: 160 60% 45%;
@@ -88,12 +88,12 @@
     /* Sidebar variables - dark theme */
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 165 46% 50%; /* Teal primary for sidebar in dark mode */
-    --sidebar-primary-foreground: 165 40% 98%;
+    --sidebar-primary: 0 96% 38%; /* Red primary for sidebar in dark mode */
+    --sidebar-primary-foreground: 0 0% 98%;
     --sidebar-accent: 240 3.7% 15.9%;
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 165 46% 55%;
+    --sidebar-ring: 0 96% 45%;
   }
 }
 

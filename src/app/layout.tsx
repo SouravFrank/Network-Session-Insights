@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: 'Session Insights',
-  description: 'Analyze session data and get AI-driven insights.',
+  title: 'Wishnet Session Insights',
+  description: 'Analyze session data and get AI-driven insights for Wishnet.',
 };
 
 export default function RootLayout({
