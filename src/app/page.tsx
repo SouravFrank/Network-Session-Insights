@@ -22,13 +22,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { ScrollArea } from "@/components/ui/scroll-area"; // Only ScrollArea needed, not ScrollBar explicitly for presets
-import { Loader2, Sparkles, List, CalendarDays, CalendarRange, Calendar as CalendarIconLucide, BarChart2, TableIcon, Info, FilterX } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Loader2, Sparkles, List, CalendarDays, CalendarRange, Calendar as CalendarIconLucide, BarChart2, TableIcon, Info, FilterX, FileJson } from "lucide-react";
 import type { SessionData, RawDayAggregation, RawWeekAggregation, RawMonthAggregation } from "@/lib/session-utils/types";
 import { SessionDataParsingError } from "@/lib/session-utils/types";
 import { parseLoginTime, parseSessionDurationToSeconds } from "@/lib/session-utils/parsers";
 import { aggregateSessionsByDay, aggregateSessionsByWeek, aggregateSessionsByMonth } from "@/lib/session-utils/aggregations";
-import { formatDate, formatDurationFromSeconds } from "@/lib/session-utils/formatters";
+import { formatDate, formatDurationFromSeconds, formatDataSizeForDisplay } from "@/lib/session-utils/formatters";
 import { 
   startOfDay, endOfDay, subDays, 
   startOfWeek, endOfWeek, subWeeks,
@@ -180,7 +180,7 @@ export default function SessionInsightsPage() {
 
   const [dateFrom, setDateFrom] = React.useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = React.useState<Date | undefined>(undefined);
-  const [currentDatePresets, setCurrentDatePresets] = React.useState<DatePreset[]>(sessionDailyDatePresets);
+  const [currentDatePresets, setCurrentDatePresets] = React.useState<DatePreset[]>([]);
 
 
   const [analysisResult, setAnalysisResult] = React.useState<AnalyzeUsagePatternsOutput | null>(null);
@@ -189,6 +189,10 @@ export default function SessionInsightsPage() {
   const { toast } = useToast();
 
   React.useEffect(() => {
+    if (!rawSessionData) {
+        setCurrentDatePresets([]); // No data, no presets
+        return;
+    }
     switch (activeView) {
         case 'session':
         case 'daily':
@@ -200,8 +204,8 @@ export default function SessionInsightsPage() {
         case 'monthly':
             setCurrentDatePresets(monthlyDatePresets);
             break;
-        default:
-            setCurrentDatePresets(rawSessionData ? sessionDailyDatePresets : []); 
+        default: // No active view, or view that doesn't have specific presets
+             setCurrentDatePresets(sessionDailyDatePresets); // Default to session/daily presets if data loaded
             break;
     }
   }, [activeView, rawSessionData]);
@@ -380,28 +384,37 @@ export default function SessionInsightsPage() {
   const renderViewContent = () => {
     if (isLoadingView) {
       return (
-        <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg min-h-[200px]">
-          <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
-          <p className="text-lg text-muted-foreground">Loading view data...</p>
+        <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-primary/30 rounded-lg min-h-[300px]">
+          <Loader2 className="h-16 w-16 text-primary animate-spin mb-6" />
+          <p className="text-xl font-medium text-primary mb-1">Processing Data</p>
+          <p className="text-muted-foreground">Crunching the numbers, please wait...</p>
         </div>
       );
     }
-
-    const noDataMessage = <p className="text-muted-foreground text-center py-4">No data to display for the selected view, format, or date range. Please load data and select a view, or adjust filters.</p>;
     
+    const noDataFilteredMessage = (
+        <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-muted-foreground/30 rounded-lg min-h-[300px] text-center">
+          <Info className="h-12 w-12 text-muted-foreground mb-4" />
+          <p className="text-lg font-medium text-muted-foreground mb-1">No Data to Display</p>
+          <p className="text-sm text-muted-foreground">
+            No sessions match your current filters or selected view. Try adjusting the date range or select a different view.
+          </p>
+        </div>
+    );
+
     switch (activeView) {
       case 'session':
-        if (!filteredSessionViewData || filteredSessionViewData.length === 0) return noDataMessage;
+        if (!filteredSessionViewData || filteredSessionViewData.length === 0) return noDataFilteredMessage;
         return displayFormat === 'table' ? 
                <SessionDataTable sessions={filteredSessionViewData} /> : 
                <SessionTimelineChart sessions={filteredSessionViewData} />;
       case 'daily':
-        if (!dailyAggregatedData || dailyAggregatedData.length === 0) return noDataMessage;
+        if (!dailyAggregatedData || dailyAggregatedData.length === 0) return noDataFilteredMessage;
         return displayFormat === 'table' ? (
           <DailyAggregationTable data={dailyAggregatedData} />
         ) : <DailyAggregationChart data={dailyAggregatedData} />;
       case 'weekly':
-        if (!weeklyAggregatedData || weeklyAggregatedData.length === 0) return noDataMessage;
+        if (!weeklyAggregatedData || weeklyAggregatedData.length === 0) return noDataFilteredMessage;
         return displayFormat === 'table' ? (
           <Card>
             <CardHeader><CardTitle>Weekly Aggregated Data</CardTitle></CardHeader>
@@ -409,7 +422,7 @@ export default function SessionInsightsPage() {
           </Card>
         ) : <WeeklyAggregationChart data={weeklyAggregatedData} />;
       case 'monthly':
-        if (!monthlyAggregatedData || monthlyAggregatedData.length === 0) return noDataMessage;
+        if (!monthlyAggregatedData || monthlyAggregatedData.length === 0) return noDataFilteredMessage;
         return displayFormat === 'table' ? (
           <Card>
             <CardHeader><CardTitle>Monthly Aggregated Data</CardTitle></CardHeader>
@@ -417,7 +430,26 @@ export default function SessionInsightsPage() {
           </Card>
         ) : <MonthlyAggregationChart data={monthlyAggregatedData} />;
       default:
-        return rawSessionData ? <p className="text-muted-foreground text-center py-4">Select a view (Session, Daily, Weekly, Monthly) to see processed data.</p> : <p className="text-muted-foreground text-center py-4">Please load session data using the form above.</p>;
+        if (rawSessionData) {
+            return (
+                <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-muted-foreground/30 rounded-lg min-h-[300px] text-center">
+                  <List className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-lg font-medium text-muted-foreground mb-1">Data Loaded, Select a View</p>
+                  <p className="text-sm text-muted-foreground">
+                    Choose Session, Daily, Weekly, or Monthly to process and display your data.
+                  </p>
+                </div>
+            );
+        }
+        return (
+            <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-muted-foreground/30 rounded-lg min-h-[300px] text-center">
+                <FileJson className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-lg font-medium text-muted-foreground mb-1">Load Your Session Data</p>
+                <p className="text-sm text-muted-foreground">
+                Use the form on the left to input your session data in JSON format.
+                </p>
+            </div>
+        );
     }
   };
 
@@ -446,38 +478,38 @@ export default function SessionInsightsPage() {
                    </div>
                   
                    <div className="space-y-2 pt-2">
-                      <h4 className="text-sm font-medium text-muted-foreground">Filter by Date Range:</h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <h4 className="text-sm font-medium text-muted-foreground">Filter by Date Range:</h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <Popover>
-                          <PopoverTrigger asChild>
+                            <PopoverTrigger asChild>
                             <Button variant="outline" className="w-full justify-start text-left font-normal text-sm" disabled={isLoadingView || !rawSessionData}>
-                              <CalendarIconLucide className="mr-2 h-4 w-4" />
-                              {dateFrom ? formatDate(dateFrom) : <span>Start date</span>}
+                                <CalendarIconLucide className="mr-2 h-4 w-4" />
+                                {dateFrom ? formatDate(dateFrom) : <span>Start date</span>}
                             </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
                             <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus disabled={(date) => dateTo ? date > dateTo : false}/>
-                          </PopoverContent>
+                            </PopoverContent>
                         </Popover>
                         <Popover>
-                          <PopoverTrigger asChild>
+                            <PopoverTrigger asChild>
                             <Button variant="outline" className="w-full justify-start text-left font-normal text-sm" disabled={isLoadingView || !rawSessionData}>
-                              <CalendarIconLucide className="mr-2 h-4 w-4" />
-                              {dateTo ? formatDate(dateTo) : <span>End date</span>}
+                                <CalendarIconLucide className="mr-2 h-4 w-4" />
+                                {dateTo ? formatDate(dateTo) : <span>End date</span>}
                             </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0">
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0">
                             <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus disabled={(date) => dateFrom ? date < dateFrom : false} />
-                          </PopoverContent>
+                            </PopoverContent>
                         </Popover>
-                      </div>
+                        </div>
                     </div>
                     
                     {currentDatePresets.length > 0 && (
                         <div className="space-y-2 pt-2">
                             <h4 className="text-sm font-medium text-muted-foreground">Date Presets:</h4>
-                            <ScrollArea className="w-full rounded-md max-h-48"> {/* max-h-48 for vertical scroll with grid */}
-                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-1"> {/* Grid layout */}
+                            <ScrollArea className="w-full rounded-md max-h-48">
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-1">
                                     {currentDatePresets.map((preset) => (
                                     <Button
                                         key={preset.label}
@@ -543,9 +575,10 @@ export default function SessionInsightsPage() {
             {renderViewContent()}
             
             {isLoadingAi && !analysisResult && !maintenanceSuggestion && (
-              <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-lg min-h-[300px]">
-                <Loader2 className="h-12 w-12 text-primary animate-spin mb-4" />
-                <p className="text-lg text-muted-foreground">AI is analyzing your data... Please wait.</p>
+              <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-primary/30 rounded-lg min-h-[300px]">
+                <Loader2 className="h-16 w-16 text-primary animate-spin mb-6" />
+                 <p className="text-xl font-medium text-primary mb-1">AI Analysis in Progress</p>
+                <p className="text-muted-foreground">Our digital brain is working its magic... Please wait.</p>
               </div>
             )}
 
@@ -553,7 +586,7 @@ export default function SessionInsightsPage() {
               <>
                 {analysisResult && <UsagePatternsDisplay data={analysisResult} />}
                 {maintenanceSuggestion && <MaintenanceSuggestionDisplay data={maintenanceSuggestion} />}
-                <AnomalyAlertDisplay /> 
+                { (analysisResult || maintenanceSuggestion) && <AnomalyAlertDisplay />} 
               </>
             )}
           </div>
@@ -566,4 +599,3 @@ export default function SessionInsightsPage() {
     </div>
   );
 }
-
