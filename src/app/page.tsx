@@ -23,7 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Sparkles, List, CalendarDays, CalendarRange, Calendar as CalendarIconLucide, BarChart2, TableIcon, Info, FilterX, FileJson } from "lucide-react";
+import { Loader2, Sparkles, List, CalendarDays, CalendarRange, Calendar as CalendarIconLucide, BarChart2, TableIcon, Info, FilterX, FileJson, Eye, EyeOff } from "lucide-react";
 import type { SessionData, RawDayAggregation, RawWeekAggregation, RawMonthAggregation } from "@/lib/session-utils/types";
 import { SessionDataParsingError } from "@/lib/session-utils/types";
 import { parseLoginTime, parseSessionDurationToSeconds } from "@/lib/session-utils/parsers";
@@ -181,6 +181,7 @@ export default function SessionInsightsPage() {
   const [dateFrom, setDateFrom] = React.useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = React.useState<Date | undefined>(undefined);
   const [currentDatePresets, setCurrentDatePresets] = React.useState<DatePreset[]>([]);
+  const [isDataInputVisible, setIsDataInputVisible] = React.useState(true);
 
 
   const [analysisResult, setAnalysisResult] = React.useState<AnalyzeUsagePatternsOutput | null>(null);
@@ -204,8 +205,8 @@ export default function SessionInsightsPage() {
         case 'monthly':
             setCurrentDatePresets(monthlyDatePresets);
             break;
-        default: // No active view, or view that doesn't have specific presets
-             setCurrentDatePresets(sessionDailyDatePresets); // Default to session/daily presets if data loaded
+        default: 
+             setCurrentDatePresets(sessionDailyDatePresets); 
             break;
     }
   }, [activeView, rawSessionData]);
@@ -223,6 +224,7 @@ export default function SessionInsightsPage() {
     setDisplayFormat('table');
     setDateFrom(undefined);
     setDateTo(undefined);
+    setIsDataInputVisible(false); // Hide input form after successful load
     toast({
         title: "Data Loaded",
         description: "Session data is ready. Select a view (Session, Daily, etc.) to process and display.",
@@ -459,7 +461,22 @@ export default function SessionInsightsPage() {
       <main className="flex-grow container mx-auto px-4 md:px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-1 space-y-6">
-            <DataInputForm onSubmit={handleDataLoadSubmit} isLoading={isLoadingView || isLoadingAi} />
+            {rawSessionData && !isDataInputVisible && (
+              <Button variant="outline" onClick={() => setIsDataInputVisible(true)} className="w-full">
+                <Eye className="mr-2 h-4 w-4" /> Show Data Input
+              </Button>
+            )}
+            {isDataInputVisible && (
+              <DataInputForm 
+                onSubmit={handleDataLoadSubmit} 
+                isLoading={isLoadingView || isLoadingAi} 
+              />
+            )}
+             {rawSessionData && !isDataInputVisible && (
+                 <Button variant="outline" onClick={() => setIsDataInputVisible(true)} className="w-full mb-0"> {/* Adjusted margin */}
+                    <Eye className="mr-2 h-4 w-4" /> Show Data Input
+                </Button>
+            )}
             
             {rawSessionData && (
               <Card className="shadow-lg">
@@ -599,3 +616,4 @@ export default function SessionInsightsPage() {
     </div>
   );
 }
+
