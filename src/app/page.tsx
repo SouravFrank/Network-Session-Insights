@@ -191,7 +191,7 @@ export default function SessionInsightsPage() {
 
   React.useEffect(() => {
     if (!rawSessionData) {
-        setCurrentDatePresets([]); // No data, no presets
+        setCurrentDatePresets([]); 
         return;
     }
     switch (activeView) {
@@ -224,7 +224,7 @@ export default function SessionInsightsPage() {
     setDisplayFormat('table');
     setDateFrom(undefined);
     setDateTo(undefined);
-    setIsDataInputVisible(false); // Hide input form after successful load
+    setIsDataInputVisible(false); 
     toast({
         title: "Data Loaded",
         description: "Session data is ready. Select a view (Session, Daily, etc.) to process and display.",
@@ -458,24 +458,31 @@ export default function SessionInsightsPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <AppHeader />
-      <main className="flex-grow container mx-auto px-4 md:px-6 py-8">
+      <main className="flex-grow px-4 md:px-6 py-8 w-full">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-1 space-y-6">
-            {rawSessionData && !isDataInputVisible && (
-              <Button variant="outline" onClick={() => setIsDataInputVisible(true)} className="w-full">
-                <Eye className="mr-2 h-4 w-4" /> Show Data Input
-              </Button>
-            )}
-            {isDataInputVisible && (
+           
+            {rawSessionData ? ( 
+              isDataInputVisible ? (
+                <>
+                  <Button variant="outline" onClick={() => setIsDataInputVisible(false)} className="w-full">
+                    <EyeOff className="mr-2 h-4 w-4" /> Hide Data Input
+                  </Button>
+                  <DataInputForm 
+                    onSubmit={handleDataLoadSubmit} 
+                    isLoading={isLoadingView || isLoadingAi} 
+                  />
+                </>
+              ) : (
+                <Button variant="outline" onClick={() => setIsDataInputVisible(true)} className="w-full">
+                  <Eye className="mr-2 h-4 w-4" /> Show Data Input
+                </Button>
+              )
+            ) : ( 
               <DataInputForm 
                 onSubmit={handleDataLoadSubmit} 
                 isLoading={isLoadingView || isLoadingAi} 
               />
-            )}
-             {rawSessionData && !isDataInputVisible && (
-                 <Button variant="outline" onClick={() => setIsDataInputVisible(true)} className="w-full mb-0"> {/* Adjusted margin */}
-                    <Eye className="mr-2 h-4 w-4" /> Show Data Input
-                </Button>
             )}
             
             {rawSessionData && (
