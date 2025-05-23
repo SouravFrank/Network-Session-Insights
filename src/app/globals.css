@@ -22,8 +22,9 @@
     --muted: 150 10% 88%; /* Muted gray */
     --muted-foreground: 0 0% 45%; /* Lighter gray for muted text */
 
-    --accent: 120 73% 75%; /* Pale Green #90EE90 - Kept as is, might need review with new primary */
-    --accent-foreground: 120 40% 25%; /* Darker Green for text on accent - Kept as is */
+    /* Updated accent colors for red-themed hover states */
+    --accent: 0 90% 95%; /* Very light red/pink background for hover #fff0f0 */
+    --accent-foreground: 0 96% 38%; /* Primary red text for hover */
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
@@ -32,11 +33,13 @@
     --input: 150 10% 92%;
     --ring: 0 96% 45%; /* Brighter/related Red for rings */
 
-    --chart-1: 0 85% 50%; /* Red shade 1 #e62e2e */
-    --chart-2: 15 80% 55%; /* Orange-red shade #f26a3d */
-    --chart-3: 345 70% 45%; /* Deep Pink-red shade #c93358 */
-    --chart-4: 0 50% 60%; /* Softer red shade #cc6666 */
-    --chart-5: 30 75% 50%; /* Orange shade #f08c30 */
+    /* Updated chart colors for red theme and better contrast */
+    --chart-1: 0 96% 38%; /* #c00505 - Primary Red (e.g., Download) */
+    --chart-2: 25 90% 50%; /* #f28c17 - Bright Orange (e.g., Upload) */
+    --chart-3: 0 80% 65%;  /* #f37d7d - Lighter Red */
+    --chart-4: 345 80% 60%; /* #ec627e - Pinkish Red */
+    --chart-5: 15 85% 60%; /* #f58151 - Red-Orange */
+    
     --radius: 0.5rem;
 
     /* Sidebar variables - kept as default, not actively used by this app design */
@@ -69,8 +72,9 @@
     --muted: 240 5% 20%;
     --muted-foreground: 0 0% 65%;
 
-    --accent: 120 73% 75%; /* Pale Green #90EE90 - Kept as is */
-    --accent-foreground: 120 40% 25%; /* Darker Green for text on accent - Kept as is */
+    /* Updated accent colors for red-themed hover states in dark mode */
+    --accent: 0 40% 20%;       /* Dark, muted red background for hover #521f1f */
+    --accent-foreground: 0 80% 85%; /* Light, soft red/pink text for hover #f7cdcd */
 
     --destructive: 0 70% 50%; /* Adjusted destructive for dark theme */
     --destructive-foreground: 0 0% 98%;
@@ -79,11 +83,12 @@
     --input: 240 5% 22%;
     --ring: 0 96% 45%; /* Brighter/related Red for rings */
 
-    --chart-1: 0 85% 60%; /* Brighter Red shade 1 #f34d4d */
-    --chart-2: 15 80% 65%; /* Brighter Orange-red shade #f67f58 */
-    --chart-3: 345 70% 55%; /* Brighter Deep Pink-red shade #de5074 */
-    --chart-4: 0 50% 70%; /* Lighter Softer red shade #d97f7f */
-    --chart-5: 30 75% 60%; /* Lighter Orange shade #f39e4d */
+    /* Updated chart colors for red theme and better contrast in dark mode */
+    --chart-1: 0 96% 48%; /* #d90606 - Brighter Primary Red (e.g., Download) */
+    --chart-2: 25 90% 60%; /* #f59e42 - Brighter Orange (e.g., Upload) */
+    --chart-3: 0 80% 75%;  /* #f79a9a - Brighter Lighter Red */
+    --chart-4: 345 80% 70%; /* #f07c95 - Brighter Pinkish Red */
+    --chart-5: 15 85% 70%; /* #f89870 - Brighter Red-Orange */
 
     /* Sidebar variables - dark theme */
     --sidebar-background: 240 5.9% 10%;
