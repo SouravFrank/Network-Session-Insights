@@ -110,4 +110,36 @@
     @apply bg-background text-foreground;
     /* font-family removed as Geist is applied via className in layout.tsx */
   }
+
+  /* Fancy Scrollbar Styles (WebKit-based browsers) */
+  /* For a more cross-browser solution, consider JS libraries */
+  ::-webkit-scrollbar {
+    width: 10px; /* Width of the entire scrollbar */
+    height: 10px; /* Height of the scrollbar (for horizontal) */
+  }
+
+  ::-webkit-scrollbar-track {
+    background: hsl(var(--muted) / 0.3); /* Slightly transparent muted color for the track */
+    border-radius: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--primary)); /* Primary color for the scrollbar thumb */
+    border-radius: 10px;
+    border: 2px solid transparent; /* Creates padding around thumb */
+    background-clip: content-box; /* Makes the border transparent to the track */
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.8); /* Slightly darker/more opaque primary on hover */
+  }
+  
+  /* Basic scrollbar styling for Firefox */
+  @supports (scrollbar-width: thin) {
+    html {
+      scrollbar-width: thin;
+      scrollbar-color: hsl(var(--primary)) hsl(var(--muted) / 0.3);
+    }
+  }
 }
+

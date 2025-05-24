@@ -1,4 +1,3 @@
-
 "use client";
 
 import * as React from "react";
@@ -47,7 +46,6 @@ interface DatePreset {
   getRange: () => { from: Date; to: Date };
 }
 
-// Optimized Preset Definitions
 const sessionDailyDatePresets: DatePreset[] = [
   { label: "Today", getRange: () => ({ from: startOfDay(new Date()), to: endOfDay(new Date()) }) },
   { label: "Yesterday", getRange: () => {
@@ -438,9 +436,9 @@ export default function SessionInsightsPage() {
       return;
     }
     setIsLoadingSmartFilters(true);
-    setTimeout(() => { // Simulate loading if needed, or directly set
-      setShowSmartFiltersUI(prev => !prev); // Toggle visibility
-      if (showSmartFiltersUI) { // If hiding, clear filters
+    setTimeout(() => { 
+      setShowSmartFiltersUI(prev => !prev); 
+      if (showSmartFiltersUI) { 
         setSmartFilteredDisplayData(null);
         setActiveSmartFilterLabel(null);
       }
@@ -771,7 +769,7 @@ export default function SessionInsightsPage() {
             )}
           </div>
           {/* Right Scrollable Content Column */}
-          <div className="lg:col-span-2 space-y-8 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto">
+          <div className="lg:col-span-2 space-y-8">
             {renderViewContent()}
             
             {isLoadingAi && !analysisResult && !maintenanceSuggestion && (
