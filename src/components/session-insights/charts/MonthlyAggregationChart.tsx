@@ -112,7 +112,7 @@ export function MonthlyAggregationChart({ data, chartTitlePrefix = "" }: Monthly
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="min-h-[400px] w-full">
+        <ChartContainer config={chartConfig} className="w-full">
           <BarChart
             accessibilityLayer
             data={chartData}
