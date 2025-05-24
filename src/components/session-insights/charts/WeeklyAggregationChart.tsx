@@ -5,9 +5,9 @@ import * as React from "react";
 import type { RawWeekAggregation } from "@/lib/session-utils/types";
 import { formatDate, formatDataSizeForDisplay, formatDurationFromSeconds, getDaysInPeriod } from "@/lib/session-utils/formatters";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ChartContainer, ChartTooltipContent, ChartLegendContent } from "@/components/ui/chart"; // Removed ChartTooltip, ChartLegend from here
+import { ChartContainer, ChartLegendContent } from "@/components/ui/chart"; 
 import type { ChartConfig } from "@/components/ui/chart";
-import { LineChart, CartesianGrid, XAxis, YAxis, Line, Tooltip as RechartsTooltip, Legend as RechartsLegend } from "recharts"; // Keep these specific Recharts imports
+import { LineChart, CartesianGrid, XAxis, YAxis, Line, Tooltip as RechartsTooltip, Legend as RechartsLegend } from "recharts"; 
 import { TrendingUp, Download, Upload, Clock, PowerOff } from "lucide-react";
 
 interface WeeklyAggregationChartProps {
@@ -56,20 +56,6 @@ export function WeeklyAggregationChart({ data, chartTitlePrefix = "" }: WeeklyAg
       .sort((a, b) => a.timestamp - b.timestamp); 
   }, [data]);
 
-  if (!chartData || chartData.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>{chartTitlePrefix}Weekly Aggregation Chart</CardTitle>
-          <CardDescription>No weekly aggregated data to display.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex items-center justify-center min-h-[300px]">
-          <p className="text-muted-foreground">Please load and process data for weekly view.</p>
-        </CardContent>
-      </Card>
-    );
-  }
-  
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const dataPoint: ChartDataItem = payload[0].payload;
@@ -100,6 +86,20 @@ export function WeeklyAggregationChart({ data, chartTitlePrefix = "" }: WeeklyAg
     return null;
   };
 
+  if (!chartData || chartData.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>{chartTitlePrefix}Weekly Aggregation Chart</CardTitle>
+          <CardDescription>No weekly aggregated data to display.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center min-h-[300px]">
+          <p className="text-muted-foreground">Please load and process data for weekly view.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+  
   return (
     <Card className="shadow-lg">
       <CardHeader>
@@ -138,16 +138,7 @@ export function WeeklyAggregationChart({ data, chartTitlePrefix = "" }: WeeklyAg
                 label={{ value: "Data (MB)", angle: -90, position: 'insideLeft', offset:10 }}
                 tickFormatter={(value) => formatDataSizeForDisplay(value,0)}
             />
-            <RechartsTooltip content={<ChartTooltipContent hideIndicator formatter={(value, name, item) => {
-              const dataKey = item.dataKey as keyof typeof chartConfig;
-              const config = chartConfig[dataKey];
-              return (
-                <div className="flex items-center gap-1.5">
-                   {config?.icon ? <config.icon className="h-4 w-4" style={{color: config.color}} /> : null}
-                  <span>{config?.label || name}: {formatDataSizeForDisplay(value as number)}</span>
-                </div>
-              );
-            }} />} cursor={{ strokeDasharray: '3 3' }}/>
+            <RechartsTooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }}/>
             <RechartsLegend content={<ChartLegendContent />} verticalAlign="top" wrapperStyle={{paddingBottom: "10px"}} />
             <Line
               type="monotone"
@@ -173,5 +164,3 @@ export function WeeklyAggregationChart({ data, chartTitlePrefix = "" }: WeeklyAg
     </Card>
   );
 }
-
-    

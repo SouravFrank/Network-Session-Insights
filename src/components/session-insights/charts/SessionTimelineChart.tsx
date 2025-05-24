@@ -6,9 +6,9 @@ import type { SessionData } from "@/lib/session-utils/types";
 import { parseLoginTime, parseSessionDurationToSeconds } from "@/lib/session-utils/parsers";
 import { formatDurationFromSeconds, formatDataSizeForDisplay, formatDate } from "@/lib/session-utils/formatters";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ChartContainer, ChartTooltipContent, ChartLegendContent } from "@/components/ui/chart"; // Removed ChartTooltip, ChartLegend
+import { ChartContainer, ChartLegendContent } from "@/components/ui/chart"; 
 import type { ChartConfig } from "@/components/ui/chart";
-import { LineChart, CartesianGrid, XAxis, YAxis, Line, Tooltip as RechartsTooltip, Legend as RechartsLegend } from "recharts"; // Keep these
+import { LineChart, CartesianGrid, XAxis, YAxis, Line, Tooltip as RechartsTooltip, Legend as RechartsLegend } from "recharts"; 
 import { Activity, Download, Upload, Clock } from "lucide-react";
 
 interface SessionTimelineChartProps {
@@ -64,20 +64,6 @@ export function SessionTimelineChart({ sessions }: SessionTimelineChartProps) {
       .sort((a, b) => a.timestamp - b.timestamp); 
   }, [sessions]);
 
-  if (!chartData || chartData.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Session Timeline</CardTitle>
-          <CardDescription>No session data to display in chart.</CardDescription>
-        </CardHeader>
-        <CardContent className="flex items-center justify-center min-h-[300px]">
-          <p className="text-muted-foreground">Please load valid session data.</p>
-        </CardContent>
-      </Card>
-    );
-  }
-  
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const data: ChartDataItem = payload[0].payload;
@@ -98,7 +84,20 @@ export function SessionTimelineChart({ sessions }: SessionTimelineChartProps) {
     return null;
   };
 
-
+  if (!chartData || chartData.length === 0) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Session Timeline</CardTitle>
+          <CardDescription>No session data to display in chart.</CardDescription>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center min-h-[300px]">
+          <p className="text-muted-foreground">Please load valid session data.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+  
   return (
     <Card className="shadow-lg">
       <CardHeader>
@@ -136,46 +135,13 @@ export function SessionTimelineChart({ sessions }: SessionTimelineChartProps) {
               textAnchor={chartData.length > 10 ? "end" : "middle"}
               height={chartData.length > 10 ? 70 : 30}
               minTickGap={20}
-              
             />
             <YAxis 
                 yAxisId="left" 
                 label={{ value: "Data (MB)", angle: -90, position: 'insideLeft', offset:10 }}
                 tickFormatter={(value) => formatDataSizeForDisplay(value,0)}
             />
-            <RechartsTooltip content={<ChartTooltipContent hideIndicator formatter={(value, name, item) => {
-              const dataKey = item.dataKey as keyof typeof chartConfig;
-              const config = chartConfig[dataKey];
-              const currentItem = item.payload as ChartDataItem;
-              const tooltipContent: React.ReactNode[] = [];
-
-              if (name === 'download' || name === 'upload') {
-                 tooltipContent.push(
-                    <div key={`${name}-val`} className="flex items-center gap-1.5">
-                        {config?.icon ? <config.icon className="h-4 w-4" style={{color: config.color}}/> : null}
-                        <span>{config?.label || name}: {formatDataSizeForDisplay(value as number)}</span>
-                    </div>
-                 );
-              }
-              if (name === 'download') { // Show duration only once, e.g., with download
-                tooltipContent.push(
-                     <div key="duration" className="flex items-center gap-1.5 mt-1">
-                        <Clock className="mr-1 h-4 w-4 text-muted-foreground" />
-                        <span>Duration: {currentItem.sessionTimeFormatted}</span>
-                    </div>
-                );
-              }
-              return <>{tooltipContent}</>;
-            }} 
-            labelFormatter={(label, payload) => {
-                 if (payload && payload.length > 0) {
-                    const item = payload[0].payload as ChartDataItem;
-                    return item.loginDateTimeFormatted;
-                 }
-                 return label;
-            }}
-            />} 
-            cursor={{ strokeDasharray: '3 3' }}/>
+            <RechartsTooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }}/>
             <RechartsLegend content={<ChartLegendContent />} verticalAlign="top" wrapperStyle={{paddingBottom: "10px"}} />
             <Line
               yAxisId="left"
@@ -203,5 +169,3 @@ export function SessionTimelineChart({ sessions }: SessionTimelineChartProps) {
     </Card>
   );
 }
-
-    
