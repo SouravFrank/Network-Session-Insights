@@ -47,6 +47,7 @@ interface DatePreset {
   getRange: () => { from: Date; to: Date };
 }
 
+// Optimized Preset Definitions
 const sessionDailyDatePresets: DatePreset[] = [
   { label: "Today", getRange: () => ({ from: startOfDay(new Date()), to: endOfDay(new Date()) }) },
   { label: "Yesterday", getRange: () => {
@@ -437,8 +438,12 @@ export default function SessionInsightsPage() {
       return;
     }
     setIsLoadingSmartFilters(true);
-    setTimeout(() => {
-      setShowSmartFiltersUI(true);
+    setTimeout(() => { // Simulate loading if needed, or directly set
+      setShowSmartFiltersUI(prev => !prev); // Toggle visibility
+      if (showSmartFiltersUI) { // If hiding, clear filters
+        setSmartFilteredDisplayData(null);
+        setActiveSmartFilterLabel(null);
+      }
       setIsLoadingSmartFilters(false);
     }, 200); 
   };
@@ -585,7 +590,7 @@ export default function SessionInsightsPage() {
       <main className="flex-grow px-4 md:px-6 py-8 w-full">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Sticky Left Column */}
-          <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-28 lg:max-h-[calc(100vh-12.5rem)] lg:overflow-y-auto lg:self-start lg:pr-4">
+          <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-20 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:self-start lg:pr-4">
            
             {rawSessionData ? ( 
               isDataInputVisible ? (
@@ -739,7 +744,7 @@ export default function SessionInsightsPage() {
                         )}
                     </Button>
                     {showSmartFiltersUI && 
-                        <Button variant="outline" size="sm" className="w-full text-xs mt-1" onClick={() => {setShowSmartFiltersUI(false); setSmartFilteredDisplayData(null); setActiveSmartFilterLabel(null);}}>
+                        <Button variant="outline" size="sm" className="w-full text-xs mt-1" onClick={() => {setShowSmartFiltersUI(false); setSmartFilteredDisplayData(null); setActiveSmartFilterLabel(null); if (activeView) processAndSetView(activeView);}}>
                             Clear Smart Filter & View Options
                         </Button>
                     }
@@ -766,7 +771,7 @@ export default function SessionInsightsPage() {
             )}
           </div>
           {/* Right Scrollable Content Column */}
-          <div className="lg:col-span-2 space-y-8">
+          <div className="lg:col-span-2 space-y-8 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto">
             {renderViewContent()}
             
             {isLoadingAi && !analysisResult && !maintenanceSuggestion && (
