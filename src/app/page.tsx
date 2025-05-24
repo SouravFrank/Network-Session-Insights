@@ -4,10 +4,7 @@
 import * as React from "react";
 import { AppHeader } from "@/components/session-insights/app-header";
 import { DataInputForm } from "@/components/session-insights/data-input-form";
-// import { UsagePatternsDisplay } from "@/components/session-insights/usage-patterns-display"; // Removed
-// import { MaintenanceSuggestionDisplay } from "@/components/session-insights/maintenance-suggestion-display"; // Removed
-// import { AnomalyAlertDisplay } from "@/components/session-insights/anomaly-alert-display"; // Removed
-import { SessionInsightsDisplay } from "@/components/session-insights/SessionInsightsDisplay"; // Added
+import { SessionInsightsDisplay } from "@/components/session-insights/SessionInsightsDisplay"; 
 
 import { SessionDataTable } from "@/components/session-insights/session-data-table";
 import { DailyAggregationTable } from "@/components/session-insights/tables/DailyAggregationTable";
@@ -16,8 +13,7 @@ import { DailyAggregationChart } from "@/components/session-insights/charts/Dail
 import { WeeklyAggregationChart } from "@/components/session-insights/charts/WeeklyAggregationChart";
 import { MonthlyAggregationChart } from "@/components/session-insights/charts/MonthlyAggregationChart";
 
-import { analyzeSessionInsights, type AnalyzeSessionInsightsOutput } from "@/ai/flows/analyze-session-insights"; // Updated
-// import { suggestMaintenanceSchedule, type SuggestMaintenanceScheduleOutput } from "@/ai/flows/suggest-maintenance-schedule"; // Removed
+import { analyzeSessionInsights, type AnalyzeSessionInsightsOutput } from "@/ai/flows/analyze-session-insights"; 
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -25,7 +21,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Sparkles, List, CalendarDays, CalendarRange, Calendar as CalendarIconLucide, BarChart2, TableIcon, Info, FilterX, FileJson, Eye, EyeOff, Zap, BrainCircuit, Bot } from "lucide-react"; // Added Bot
+import { Loader2, List, CalendarDays, CalendarRange, Calendar as CalendarIconLucide, BarChart2, TableIcon, Info, FilterX, FileJson, Eye, EyeOff, Zap, BrainCircuit, Bot } from "lucide-react"; 
 import type { SessionData, RawDayAggregation, RawWeekAggregation, RawMonthAggregation } from "@/lib/session-utils/types";
 import { SessionDataParsingError } from "@/lib/session-utils/types";
 import { parseLoginTime, parseSessionDurationToSeconds } from "@/lib/session-utils/parsers";
@@ -79,7 +75,6 @@ const weeklyDatePresets: DatePreset[] = [
     } 
   },
   { label: "Year to Date (Weekly)", getRange: () => ({ from: startOfYear(new Date()), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }) },
-  // { label: "This Calendar Year", getRange: () => ({ from: startOfYear(new Date()), to: endOfYear(new Date()) }) }, // Removed
   { label: "Last Calendar Year", getRange: () => { 
       const ly = subYears(new Date(), 1); 
       return { from: startOfYear(ly), to: endOfYear(ly) };
@@ -98,7 +93,6 @@ const monthlyDatePresets: DatePreset[] = [
     } 
   },
   { label: "Year to Date (Monthly)", getRange: () => ({ from: startOfYear(new Date()), to: endOfMonth(new Date()) }) },
-  // { label: "This Calendar Year", getRange: () => ({ from: startOfYear(new Date()), to: endOfYear(new Date()) }) }, // Removed
   { label: "Last Calendar Year", getRange: () => { 
       const ly = subYears(new Date(), 1); 
       return { from: startOfYear(ly), to: endOfYear(ly) };
@@ -221,8 +215,7 @@ export default function SessionInsightsPage() {
   const [currentDatePresets, setCurrentDatePresets] = React.useState<DatePreset[]>([]);
   const [isDataInputVisible, setIsDataInputVisible] = React.useState(true);
 
-  const [analysisResult, setAnalysisResult] = React.useState<AnalyzeSessionInsightsOutput | null>(null); // Updated type
-  // const [maintenanceSuggestion, setMaintenanceSuggestion] = React.useState<SuggestMaintenanceScheduleOutput | null>(null); // Removed
+  const [analysisResult, setAnalysisResult] = React.useState<AnalyzeSessionInsightsOutput | null>(null);
   const [isLoadingAi, setIsLoadingAi] = React.useState(false);
   const { toast } = useToast();
   const aiResultsRef = React.useRef<HTMLDivElement>(null);
@@ -266,7 +259,6 @@ export default function SessionInsightsPage() {
     setWeeklyAggregatedData(null);
     setMonthlyAggregatedData(null);
     setAnalysisResult(null);
-    // setMaintenanceSuggestion(null); // Removed
     setActiveView(null); 
     setDisplayFormat('chart');
     setDateFrom(undefined);
@@ -386,7 +378,6 @@ export default function SessionInsightsPage() {
 
     setIsLoadingAi(true);
     setAnalysisResult(null);
-    // setMaintenanceSuggestion(null); // Removed
     
     setTimeout(() => { 
         aiResultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -394,10 +385,9 @@ export default function SessionInsightsPage() {
 
 
     try {
-      const insights = await analyzeSessionInsights({ sessionData: rawSessionData }); // Updated flow
+      const insights = await analyzeSessionInsights({ sessionData: rawSessionData }); 
       setAnalysisResult(insights);
-      // No longer calling suggestMaintenanceSchedule
-
+      
       toast({
         title: "AI Analysis Complete",
         description: "Session insights have been generated.",
@@ -590,33 +580,28 @@ export default function SessionInsightsPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <AppHeader />
-      <main className="flex-grow px-4 md:px-6 py-8 w-full">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <main className="flex-grow px-4 md:px-6 py-8 w-full lg:overflow-y-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-full">
           
           <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-20 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:self-start lg:pr-4">
            
-            {rawSessionData ? ( 
-              isDataInputVisible ? (
+            {isDataInputVisible || !rawSessionData ? (
                 <>
-                  <Button variant="outline" onClick={() => setIsDataInputVisible(false)} className="w-full">
-                    <EyeOff className="mr-2 h-4 w-4" /> Hide Data Input
-                  </Button>
+                  {rawSessionData && (
+                    <Button variant="outline" onClick={() => setIsDataInputVisible(false)} className="w-full">
+                      <EyeOff className="mr-2 h-4 w-4" /> Hide Data Input
+                    </Button>
+                  )}
                   <DataInputForm 
                     onSubmit={handleDataLoadSubmit} 
-                    isLoading={isLoadingView || isLoadingAi || isLoadingSmartFilters} 
+                    isLoading={isLoadingView || isLoadingAi} 
                   />
                 </>
               ) : (
                 <Button variant="outline" onClick={() => setIsDataInputVisible(true)} className="w-full">
                   <Eye className="mr-2 h-4 w-4" /> Show Data Input
                 </Button>
-              )
-            ) : ( 
-              <DataInputForm 
-                onSubmit={handleDataLoadSubmit} 
-                isLoading={isLoadingView || isLoadingAi || isLoadingSmartFilters} 
-              />
-            )}
+              )}
             
             {rawSessionData && ( 
               <Card className="shadow-lg">
@@ -765,7 +750,7 @@ export default function SessionInsightsPage() {
                       </>
                     ) : (
                       <>
-                        <Bot className="mr-2 h-4 w-4" /> {/* Changed from Sparkles */}
+                        <Bot className="mr-2 h-4 w-4" /> 
                         Analyze with AI
                       </>
                     )}
@@ -775,7 +760,7 @@ export default function SessionInsightsPage() {
             )}
           </div>
           
-          <div className="lg:col-span-2 space-y-8">
+          <div className="lg:col-span-2 space-y-8 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto">
             {renderViewContent()}
             
             <div ref={aiResultsRef} className="space-y-8">
@@ -804,3 +789,5 @@ export default function SessionInsightsPage() {
     </div>
   );
 }
+
+    

@@ -5,7 +5,7 @@ import * as React from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Loader2, FileJson } from "lucide-react"; // Changed icon to FileJson
+import { Loader2, FileJson } from "lucide-react"; 
 
 interface DataInputFormProps {
   onSubmit: (sessionData: string) => void;
@@ -60,7 +60,7 @@ export function DataInputForm({ onSubmit, isLoading }: DataInputFormProps) {
             value={sessionData}
             onChange={(e) => setSessionData(e.target.value)}
             rows={10}
-            className="min-h-[200px] text-sm font-mono" // Added font-mono for better JSON readability
+            className="min-h-[200px] text-sm font-mono" 
             disabled={isLoading}
           />
           <Button type="submit" disabled={isLoading || !sessionData.trim()} className="w-full sm:w-auto">
@@ -79,3 +79,5 @@ export function DataInputForm({ onSubmit, isLoading }: DataInputFormProps) {
   );
 }
 
+
+    
