@@ -1,3 +1,4 @@
+
 "use client";
 
 import * as React from "react";
@@ -22,7 +23,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Sparkles, List, CalendarDays, CalendarRange, Calendar as CalendarIconLucide, BarChart2, TableIcon, Info, FilterX, FileJson, Eye, EyeOff, Zap } from "lucide-react";
+import { Loader2, Sparkles, List, CalendarDays, CalendarRange, Calendar as CalendarIconLucide, BarChart2, TableIcon, Info, FilterX, FileJson, Eye, EyeOff, Zap, BrainCircuit } from "lucide-react";
 import type { SessionData, RawDayAggregation, RawWeekAggregation, RawMonthAggregation } from "@/lib/session-utils/types";
 import { SessionDataParsingError } from "@/lib/session-utils/types";
 import { parseLoginTime, parseSessionDurationToSeconds } from "@/lib/session-utils/parsers";
@@ -220,6 +221,7 @@ export default function SessionInsightsPage() {
   const [maintenanceSuggestion, setMaintenanceSuggestion] = React.useState<SuggestMaintenanceScheduleOutput | null>(null);
   const [isLoadingAi, setIsLoadingAi] = React.useState(false);
   const { toast } = useToast();
+  const aiResultsRef = React.useRef<HTMLDivElement>(null);
 
   const [isLoadingSmartFilters, setIsLoadingSmartFilters] = React.useState(false);
   const [showSmartFiltersUI, setShowSmartFiltersUI] = React.useState(false);
@@ -381,6 +383,12 @@ export default function SessionInsightsPage() {
     setIsLoadingAi(true);
     setAnalysisResult(null);
     setMaintenanceSuggestion(null);
+    
+    // Scroll to AI results section
+    setTimeout(() => { // Timeout to allow state to update and ref to be available
+        aiResultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+
 
     try {
       const usagePatterns = await analyzeUsagePatterns({ sessionData: rawSessionData });
@@ -772,21 +780,26 @@ export default function SessionInsightsPage() {
           <div className="lg:col-span-2 space-y-8">
             {renderViewContent()}
             
-            {isLoadingAi && !analysisResult && !maintenanceSuggestion && (
-              <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-primary/30 rounded-lg min-h-[300px]">
-                <Loader2 className="h-16 w-16 text-primary animate-spin mb-6" />
-                 <p className="text-xl font-medium text-primary mb-1">AI Analysis in Progress</p>
-                <p className="text-muted-foreground">Our digital brain is working its magic... Please wait.</p>
-              </div>
-            )}
+            <div ref={aiResultsRef} className="space-y-8"> {/* AI Results Container */}
+              {isLoadingAi && (
+                <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-primary/30 rounded-lg min-h-[300px] bg-card">
+                  <div className="flex items-center gap-4 mb-6">
+                    <BrainCircuit className="h-16 w-16 text-primary animate-pulse" />
+                    <Loader2 className="h-16 w-16 text-primary animate-spin" />
+                  </div>
+                  <p className="text-2xl font-semibold text-primary mb-2">AI Brain at Work...</p>
+                  <p className="text-muted-foreground">Analyzing your data to uncover insights. Please wait a moment.</p>
+                </div>
+              )}
 
-            {!isLoadingAi && (analysisResult || maintenanceSuggestion) && (
-              <>
-                {analysisResult && <UsagePatternsDisplay data={analysisResult} />}
-                {maintenanceSuggestion && <MaintenanceSuggestionDisplay data={maintenanceSuggestion} />}
-                { (analysisResult || maintenanceSuggestion) && <AnomalyAlertDisplay />} 
-              </>
-            )}
+              {!isLoadingAi && (analysisResult || maintenanceSuggestion) && (
+                <>
+                  {analysisResult && <UsagePatternsDisplay data={analysisResult} />}
+                  {maintenanceSuggestion && <MaintenanceSuggestionDisplay data={maintenanceSuggestion} />}
+                  <AnomalyAlertDisplay />
+                </>
+              )}
+            </div>
           </div>
         </div>
       </main>
@@ -797,4 +810,3 @@ export default function SessionInsightsPage() {
     </div>
   );
 }
-
