@@ -102,17 +102,18 @@ const monthlyDatePresets: DatePreset[] = [
   },
 ];
 
+
 interface SmartFilterPresetConfig {
   label: string;
-  type: 'TOP_N'; // For now, only TOP_N, can be expanded
+  type: 'TOP_N'; 
   nValue: number;
   metric:
-    | 'totalUsage' // download + upload
+    | 'totalUsage' 
     | 'download'
     | 'upload'
     | 'duration'
-    | 'sessionCount'; // For aggregated views
-  sortDirection: 'desc' | 'asc'; // desc for MAX, asc for MIN
+    | 'sessionCount'; 
+  sortDirection: 'desc' | 'asc'; 
   description?: string;
 }
 
@@ -221,7 +222,6 @@ export default function SessionInsightsPage() {
   const [isLoadingAi, setIsLoadingAi] = React.useState(false);
   const { toast } = useToast();
 
-  // Smart Filters State
   const [isLoadingSmartFilters, setIsLoadingSmartFilters] = React.useState(false);
   const [showSmartFiltersUI, setShowSmartFiltersUI] = React.useState(false);
   const [smartFilteredDisplayData, setSmartFilteredDisplayData] = React.useState<any[] | null>(null);
@@ -233,7 +233,6 @@ export default function SessionInsightsPage() {
         setCurrentDatePresets([]); 
         return;
     }
-    // Clear smart filter if view changes
     setSmartFilteredDisplayData(null);
     setActiveSmartFilterLabel(null);
 
@@ -285,7 +284,7 @@ export default function SessionInsightsPage() {
     
     setIsLoadingView(true);
     setActiveView(viewType);
-    setSmartFilteredDisplayData(null); // Clear smart filter when view changes
+    setSmartFilteredDisplayData(null); 
     setActiveSmartFilterLabel(null);
 
     let currentAllParsedSessions = parsedSessions;
@@ -420,7 +419,6 @@ export default function SessionInsightsPage() {
   const clearDateFilters = () => {
     setDateFrom(undefined);
     setDateTo(undefined);
-    // Clear smart filter when date filters change
     setSmartFilteredDisplayData(null);
     setActiveSmartFilterLabel(null);
   };
@@ -429,7 +427,6 @@ export default function SessionInsightsPage() {
     const { from, to } = preset.getRange();
     setDateFrom(from);
     setDateTo(to);
-    // Clear smart filter when date filters change
     setSmartFilteredDisplayData(null);
     setActiveSmartFilterLabel(null);
   };
@@ -440,23 +437,23 @@ export default function SessionInsightsPage() {
       return;
     }
     setIsLoadingSmartFilters(true);
-    // Simulate a brief delay for UI transition if needed, or directly show
     setTimeout(() => {
       setShowSmartFiltersUI(true);
       setIsLoadingSmartFilters(false);
-    }, 200); // Optional: short delay for smoother UI
+    }, 200); 
   };
 
   const handleSmartFilterApply = (config: SmartFilterPresetConfig) => {
-    if (!activeView) return; // Should be guarded by handleActivateSmartFilters
-    setIsLoadingView(true); // Use main view loader
+    if (!activeView) return; 
+    setIsLoadingView(true); 
     setActiveSmartFilterLabel(config.label);
 
     let sourceData: any[] = [];
-    if (activeView === 'session') sourceData = filteredSessionViewData || [];
-    else if (activeView === 'daily') sourceData = dailyAggregatedData || [];
-    else if (activeView === 'weekly') sourceData = weeklyAggregatedData || [];
-    else if (activeView === 'monthly') sourceData = monthlyAggregatedData || [];
+    if (activeView === 'session' && filteredSessionViewData) sourceData = filteredSessionViewData;
+    else if (activeView === 'daily' && dailyAggregatedData) sourceData = dailyAggregatedData;
+    else if (activeView === 'weekly' && weeklyAggregatedData) sourceData = weeklyAggregatedData;
+    else if (activeView === 'monthly' && monthlyAggregatedData) sourceData = monthlyAggregatedData;
+
 
     if (sourceData.length === 0) {
         toast({ title: "No Data for Smart Filter", description: "The current view has no data to apply smart filters on.", variant: "default" });
@@ -480,7 +477,7 @@ export default function SessionInsightsPage() {
             ? parseSessionDurationToSeconds(item.sessionTime) 
             : item.totalDurationSeconds;
         case 'sessionCount':
-            return activeView !== 'session' ? item.sessionCount : 0; // Only for aggregated views
+            return activeView !== 'session' ? item.sessionCount : 0; 
         default:
           return 0;
       }
@@ -587,7 +584,8 @@ export default function SessionInsightsPage() {
       <AppHeader />
       <main className="flex-grow px-4 md:px-6 py-8 w-full">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-1 space-y-6">
+          {/* Sticky Left Column */}
+          <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-28 lg:max-h-[calc(100vh-12.5rem)] lg:overflow-y-auto lg:self-start lg:pr-4">
            
             {rawSessionData ? ( 
               isDataInputVisible ? (
@@ -690,7 +688,6 @@ export default function SessionInsightsPage() {
                       </Button>
                     )}
 
-                    {/* Smart Filters Section */}
                     {showSmartFiltersUI && activeView && smartFilterPresetsByView[activeView as ActiveViewNotNull] && (
                       <Card className="mt-4 border-primary/50">
                         <CardHeader className="pb-2 pt-4">
@@ -768,6 +765,7 @@ export default function SessionInsightsPage() {
               </Card>
             )}
           </div>
+          {/* Right Scrollable Content Column */}
           <div className="lg:col-span-2 space-y-8">
             {renderViewContent()}
             
@@ -796,3 +794,4 @@ export default function SessionInsightsPage() {
     </div>
   );
 }
+
