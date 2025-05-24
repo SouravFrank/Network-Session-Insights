@@ -6,9 +6,9 @@ import type { SessionData } from "@/lib/session-utils/types";
 import { parseLoginTime, parseSessionDurationToSeconds } from "@/lib/session-utils/parsers";
 import { formatDurationFromSeconds, formatDataSizeForDisplay, formatDate } from "@/lib/session-utils/formatters";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
+import { ChartContainer, ChartTooltipContent, ChartLegendContent } from "@/components/ui/chart"; // Removed ChartTooltip, ChartLegend
 import type { ChartConfig } from "@/components/ui/chart";
-import { LineChart, CartesianGrid, XAxis, YAxis, Line, Tooltip as RechartsTooltip, Legend as RechartsLegend } from "recharts";
+import { LineChart, CartesianGrid, XAxis, YAxis, Line, Tooltip as RechartsTooltip, Legend as RechartsLegend } from "recharts"; // Keep these
 import { Activity, Download, Upload, Clock } from "lucide-react";
 
 interface SessionTimelineChartProps {
@@ -29,7 +29,7 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 type ChartDataItem = {
-  timestamp: number; // Unix timestamp for X-axis
+  timestamp: number; 
   loginTimeISO: string;
   download: number;
   upload: number;
@@ -61,7 +61,7 @@ export function SessionTimelineChart({ sessions }: SessionTimelineChartProps) {
         }
       })
       .filter((item): item is ChartDataItem => item !== null)
-      .sort((a, b) => a.timestamp - b.timestamp); // Ensure data is sorted by time
+      .sort((a, b) => a.timestamp - b.timestamp); 
   }, [sessions]);
 
   if (!chartData || chartData.length === 0) {
@@ -111,7 +111,7 @@ export function SessionTimelineChart({ sessions }: SessionTimelineChartProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="w-full">
+        <ChartContainer config={chartConfig} className="h-[70vh] w-full">
           <LineChart
             accessibilityLayer
             data={chartData}
@@ -129,11 +129,9 @@ export function SessionTimelineChart({ sessions }: SessionTimelineChartProps) {
               domain={['dataMin', 'dataMax']}
               tickFormatter={(unixTime) => {
                 const date = new Date(unixTime);
-                // Show date if it's the first tick or the date has changed significantly
-                // This logic can be improved for better tick distribution
                 return `${formatDate(date)} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
               }}
-              tickCount={chartData.length > 20 ? 10 : chartData.length > 5 ? 5 : undefined} // Adjust tick count based on data
+              tickCount={chartData.length > 20 ? 10 : chartData.length > 5 ? 5 : undefined} 
               angle={chartData.length > 10 ? -30 : 0}
               textAnchor={chartData.length > 10 ? "end" : "middle"}
               height={chartData.length > 10 ? 70 : 30}
@@ -145,7 +143,39 @@ export function SessionTimelineChart({ sessions }: SessionTimelineChartProps) {
                 label={{ value: "Data (MB)", angle: -90, position: 'insideLeft', offset:10 }}
                 tickFormatter={(value) => formatDataSizeForDisplay(value,0)}
             />
-            <RechartsTooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }}/>
+            <RechartsTooltip content={<ChartTooltipContent hideIndicator formatter={(value, name, item) => {
+              const dataKey = item.dataKey as keyof typeof chartConfig;
+              const config = chartConfig[dataKey];
+              const currentItem = item.payload as ChartDataItem;
+              const tooltipContent: React.ReactNode[] = [];
+
+              if (name === 'download' || name === 'upload') {
+                 tooltipContent.push(
+                    <div key={`${name}-val`} className="flex items-center gap-1.5">
+                        {config?.icon ? <config.icon className="h-4 w-4" style={{color: config.color}}/> : null}
+                        <span>{config?.label || name}: {formatDataSizeForDisplay(value as number)}</span>
+                    </div>
+                 );
+              }
+              if (name === 'download') { // Show duration only once, e.g., with download
+                tooltipContent.push(
+                     <div key="duration" className="flex items-center gap-1.5 mt-1">
+                        <Clock className="mr-1 h-4 w-4 text-muted-foreground" />
+                        <span>Duration: {currentItem.sessionTimeFormatted}</span>
+                    </div>
+                );
+              }
+              return <>{tooltipContent}</>;
+            }} 
+            labelFormatter={(label, payload) => {
+                 if (payload && payload.length > 0) {
+                    const item = payload[0].payload as ChartDataItem;
+                    return item.loginDateTimeFormatted;
+                 }
+                 return label;
+            }}
+            />} 
+            cursor={{ strokeDasharray: '3 3' }}/>
             <RechartsLegend content={<ChartLegendContent />} verticalAlign="top" wrapperStyle={{paddingBottom: "10px"}} />
             <Line
               yAxisId="left"
@@ -173,3 +203,5 @@ export function SessionTimelineChart({ sessions }: SessionTimelineChartProps) {
     </Card>
   );
 }
+
+    

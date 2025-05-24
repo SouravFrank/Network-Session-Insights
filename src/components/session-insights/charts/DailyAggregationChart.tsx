@@ -5,10 +5,10 @@ import * as React from "react";
 import type { RawDayAggregation } from "@/lib/session-utils/types";
 import { formatDate, formatDataSizeForDisplay, formatDurationFromSeconds } from "@/lib/session-utils/formatters";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
+import { ChartContainer, ChartTooltipContent, ChartLegendContent } from "@/components/ui/chart"; // Removed ChartTooltip, ChartLegend from here
 import type { ChartConfig } from "@/components/ui/chart";
-import { LineChart, CartesianGrid, XAxis, YAxis, Line, Tooltip as RechartsTooltip, Legend as RechartsLegend } from "recharts";
-import { TrendingUp, Download, Upload, Clock, PowerOff } from "lucide-react"; // Added PowerOff
+import { LineChart, CartesianGrid, XAxis, YAxis, Line, Tooltip as RechartsTooltip, Legend as RechartsLegend } from "recharts"; // Keep these specific Recharts imports
+import { TrendingUp, Download, Upload, Clock, PowerOff } from "lucide-react";
 
 interface DailyAggregationChartProps {
   data: RawDayAggregation[];
@@ -29,8 +29,8 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 type ChartDataItem = {
-  date: string; // Formatted date string for X-axis
-  timestamp: number; // Original timestamp for sorting
+  date: string; 
+  timestamp: number; 
   totalDownloadedMB: number;
   totalUploadedMB: number;
   totalDurationSeconds: number; 
@@ -102,7 +102,7 @@ export function DailyAggregationChart({ data, chartTitlePrefix = "" }: DailyAggr
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="w-full">
+        <ChartContainer config={chartConfig} className="h-[70vh] w-full">
           <LineChart
             accessibilityLayer
             data={chartData}
@@ -128,7 +128,16 @@ export function DailyAggregationChart({ data, chartTitlePrefix = "" }: DailyAggr
                 label={{ value: "Data (MB)", angle: -90, position: 'insideLeft', offset:10 }}
                 tickFormatter={(value) => formatDataSizeForDisplay(value,0)}
             />
-            <RechartsTooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }}/>
+            <RechartsTooltip content={<ChartTooltipContent hideIndicator formatter={(value, name, item) => {
+              const dataKey = item.dataKey as keyof typeof chartConfig;
+              const config = chartConfig[dataKey];
+              return (
+                <div className="flex items-center gap-1.5">
+                   {config?.icon ? <config.icon className="h-4 w-4" style={{color: config.color}} /> : null}
+                  <span>{config?.label || name}: {formatDataSizeForDisplay(value as number)}</span>
+                </div>
+              );
+            }} />} cursor={{ strokeDasharray: '3 3' }}/>
             <RechartsLegend content={<ChartLegendContent />} verticalAlign="top" wrapperStyle={{paddingBottom: "10px"}} />
             <Line
               type="monotone"
@@ -154,3 +163,5 @@ export function DailyAggregationChart({ data, chartTitlePrefix = "" }: DailyAggr
     </Card>
   );
 }
+
+    

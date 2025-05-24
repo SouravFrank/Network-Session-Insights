@@ -5,10 +5,10 @@ import * as React from "react";
 import type { RawMonthAggregation } from "@/lib/session-utils/types";
 import { formatDataSizeForDisplay, formatDurationFromSeconds, getDaysInPeriod } from "@/lib/session-utils/formatters";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, ChartLegend, ChartLegendContent } from "@/components/ui/chart";
+import { ChartContainer, ChartTooltipContent, ChartLegendContent } from "@/components/ui/chart"; // Removed ChartTooltip, ChartLegend
 import type { ChartConfig } from "@/components/ui/chart";
-import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Tooltip as RechartsTooltip, Legend as RechartsLegend } from "recharts";
-import { BarChartBig, Download, Upload, Clock, PowerOff } from "lucide-react"; // Added PowerOff
+import { BarChart, CartesianGrid, XAxis, YAxis, Bar, Tooltip as RechartsTooltip, Legend as RechartsLegend } from "recharts"; // Keep these
+import { BarChartBig, Download, Upload, Clock, PowerOff } from "lucide-react";
 
 interface MonthlyAggregationChartProps {
   data: RawMonthAggregation[];
@@ -34,7 +34,7 @@ type ChartDataItem = {
   totalDownloadedMB: number;
   totalUploadedMB: number;
   totalDurationSeconds: number; 
-  startDate: Date; // Keep original start and end dates
+  startDate: Date; 
   endDate: Date;
 };
 
@@ -76,7 +76,7 @@ export function MonthlyAggregationChart({ data, chartTitlePrefix = "" }: Monthly
       const originalPoint = data.find(d => `${d.monthName.substring(0,3)} ${d.year}` === label);
       const monthDisplay = originalPoint ? `${originalPoint.monthName} ${originalPoint.year}` : label;
 
-      const daysInMonth = originalPoint ? getDaysInPeriod(originalPoint.startDate, originalPoint.endDate) : 30; // Fallback
+      const daysInMonth = originalPoint ? getDaysInPeriod(originalPoint.startDate, originalPoint.endDate) : 30; 
       const totalSecondsInPeriod = daysInMonth * SECONDS_IN_A_DAY;
       const inactiveDurationSeconds = totalSecondsInPeriod - dataPoint.totalDurationSeconds;
 
@@ -112,7 +112,7 @@ export function MonthlyAggregationChart({ data, chartTitlePrefix = "" }: Monthly
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="w-full">
+        <ChartContainer config={chartConfig} className="h-[70vh] w-full">
           <BarChart
             accessibilityLayer
             data={chartData}
@@ -138,7 +138,16 @@ export function MonthlyAggregationChart({ data, chartTitlePrefix = "" }: Monthly
                 label={{ value: "Data (MB)", angle: -90, position: 'insideLeft', offset:10 }}
                 tickFormatter={(value) => formatDataSizeForDisplay(value,0)}
             />
-            <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted) / 0.5)' }}/>
+            <RechartsTooltip content={<ChartTooltipContent hideIndicator formatter={(value, name, item) => {
+              const dataKey = item.dataKey as keyof typeof chartConfig;
+              const config = chartConfig[dataKey];
+              return (
+                <div className="flex items-center gap-1.5">
+                   {config?.icon ? <config.icon className="h-4 w-4" style={{color: config.color}} /> : null}
+                  <span>{config?.label || name}: {formatDataSizeForDisplay(value as number)}</span>
+                </div>
+              );
+            }} />} cursor={{ fill: 'hsl(var(--muted) / 0.5)' }}/>
             <RechartsLegend content={<ChartLegendContent />} verticalAlign="top" wrapperStyle={{paddingBottom: "10px"}} />
             <Bar
               dataKey="totalDownloadedMB"
@@ -158,3 +167,5 @@ export function MonthlyAggregationChart({ data, chartTitlePrefix = "" }: Monthly
     </Card>
   );
 }
+
+    
