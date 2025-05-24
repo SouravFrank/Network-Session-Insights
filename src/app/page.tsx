@@ -4,9 +4,11 @@
 import * as React from "react";
 import { AppHeader } from "@/components/session-insights/app-header";
 import { DataInputForm } from "@/components/session-insights/data-input-form";
-import { UsagePatternsDisplay } from "@/components/session-insights/usage-patterns-display";
-import { MaintenanceSuggestionDisplay } from "@/components/session-insights/maintenance-suggestion-display";
-import { AnomalyAlertDisplay } from "@/components/session-insights/anomaly-alert-display";
+// import { UsagePatternsDisplay } from "@/components/session-insights/usage-patterns-display"; // Removed
+// import { MaintenanceSuggestionDisplay } from "@/components/session-insights/maintenance-suggestion-display"; // Removed
+// import { AnomalyAlertDisplay } from "@/components/session-insights/anomaly-alert-display"; // Removed
+import { SessionInsightsDisplay } from "@/components/session-insights/SessionInsightsDisplay"; // Added
+
 import { SessionDataTable } from "@/components/session-insights/session-data-table";
 import { DailyAggregationTable } from "@/components/session-insights/tables/DailyAggregationTable";
 import { SessionTimelineChart } from "@/components/session-insights/charts/SessionTimelineChart";
@@ -14,8 +16,8 @@ import { DailyAggregationChart } from "@/components/session-insights/charts/Dail
 import { WeeklyAggregationChart } from "@/components/session-insights/charts/WeeklyAggregationChart";
 import { MonthlyAggregationChart } from "@/components/session-insights/charts/MonthlyAggregationChart";
 
-import { analyzeUsagePatterns, type AnalyzeUsagePatternsOutput } from "@/ai/flows/analyze-usage-patterns";
-import { suggestMaintenanceSchedule, type SuggestMaintenanceScheduleOutput } from "@/ai/flows/suggest-maintenance-schedule";
+import { analyzeSessionInsights, type AnalyzeSessionInsightsOutput } from "@/ai/flows/analyze-session-insights"; // Updated
+// import { suggestMaintenanceSchedule, type SuggestMaintenanceScheduleOutput } from "@/ai/flows/suggest-maintenance-schedule"; // Removed
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -23,7 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Sparkles, List, CalendarDays, CalendarRange, Calendar as CalendarIconLucide, BarChart2, TableIcon, Info, FilterX, FileJson, Eye, EyeOff, Zap, BrainCircuit } from "lucide-react";
+import { Loader2, Sparkles, List, CalendarDays, CalendarRange, Calendar as CalendarIconLucide, BarChart2, TableIcon, Info, FilterX, FileJson, Eye, EyeOff, Zap, BrainCircuit, Bot } from "lucide-react"; // Added Bot
 import type { SessionData, RawDayAggregation, RawWeekAggregation, RawMonthAggregation } from "@/lib/session-utils/types";
 import { SessionDataParsingError } from "@/lib/session-utils/types";
 import { parseLoginTime, parseSessionDurationToSeconds } from "@/lib/session-utils/parsers";
@@ -77,6 +79,7 @@ const weeklyDatePresets: DatePreset[] = [
     } 
   },
   { label: "Year to Date (Weekly)", getRange: () => ({ from: startOfYear(new Date()), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }) },
+  // { label: "This Calendar Year", getRange: () => ({ from: startOfYear(new Date()), to: endOfYear(new Date()) }) }, // Removed
   { label: "Last Calendar Year", getRange: () => { 
       const ly = subYears(new Date(), 1); 
       return { from: startOfYear(ly), to: endOfYear(ly) };
@@ -95,6 +98,7 @@ const monthlyDatePresets: DatePreset[] = [
     } 
   },
   { label: "Year to Date (Monthly)", getRange: () => ({ from: startOfYear(new Date()), to: endOfMonth(new Date()) }) },
+  // { label: "This Calendar Year", getRange: () => ({ from: startOfYear(new Date()), to: endOfYear(new Date()) }) }, // Removed
   { label: "Last Calendar Year", getRange: () => { 
       const ly = subYears(new Date(), 1); 
       return { from: startOfYear(ly), to: endOfYear(ly) };
@@ -217,8 +221,8 @@ export default function SessionInsightsPage() {
   const [currentDatePresets, setCurrentDatePresets] = React.useState<DatePreset[]>([]);
   const [isDataInputVisible, setIsDataInputVisible] = React.useState(true);
 
-  const [analysisResult, setAnalysisResult] = React.useState<AnalyzeUsagePatternsOutput | null>(null);
-  const [maintenanceSuggestion, setMaintenanceSuggestion] = React.useState<SuggestMaintenanceScheduleOutput | null>(null);
+  const [analysisResult, setAnalysisResult] = React.useState<AnalyzeSessionInsightsOutput | null>(null); // Updated type
+  // const [maintenanceSuggestion, setMaintenanceSuggestion] = React.useState<SuggestMaintenanceScheduleOutput | null>(null); // Removed
   const [isLoadingAi, setIsLoadingAi] = React.useState(false);
   const { toast } = useToast();
   const aiResultsRef = React.useRef<HTMLDivElement>(null);
@@ -262,7 +266,7 @@ export default function SessionInsightsPage() {
     setWeeklyAggregatedData(null);
     setMonthlyAggregatedData(null);
     setAnalysisResult(null);
-    setMaintenanceSuggestion(null);
+    // setMaintenanceSuggestion(null); // Removed
     setActiveView(null); 
     setDisplayFormat('chart');
     setDateFrom(undefined);
@@ -382,28 +386,21 @@ export default function SessionInsightsPage() {
 
     setIsLoadingAi(true);
     setAnalysisResult(null);
-    setMaintenanceSuggestion(null);
+    // setMaintenanceSuggestion(null); // Removed
     
-    // Scroll to AI results section
-    setTimeout(() => { // Timeout to allow state to update and ref to be available
+    setTimeout(() => { 
         aiResultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
 
 
     try {
-      const usagePatterns = await analyzeUsagePatterns({ sessionData: rawSessionData });
-      setAnalysisResult(usagePatterns);
-
-      const currentTime = new Date().toISOString(); 
-      const scheduleSuggestion = await suggestMaintenanceSchedule({
-        usagePatterns: `Peak Hours: ${usagePatterns.peakHours}, Quiet Hours: ${usagePatterns.quietHours}, Trends: ${usagePatterns.overallTrends}`,
-        currentTime,
-      });
-      setMaintenanceSuggestion(scheduleSuggestion);
+      const insights = await analyzeSessionInsights({ sessionData: rawSessionData }); // Updated flow
+      setAnalysisResult(insights);
+      // No longer calling suggestMaintenanceSchedule
 
       toast({
         title: "AI Analysis Complete",
-        description: "Session data analyzed and maintenance schedule suggested.",
+        description: "Session insights have been generated.",
       });
 
     } catch (error) {
@@ -595,7 +592,7 @@ export default function SessionInsightsPage() {
       <AppHeader />
       <main className="flex-grow px-4 md:px-6 py-8 w-full">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Sticky Left Column */}
+          
           <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-20 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:self-start lg:pr-4">
            
             {rawSessionData ? ( 
@@ -699,6 +696,18 @@ export default function SessionInsightsPage() {
                       </Button>
                     )}
 
+                    {activeView && ( 
+                        <div className="pt-4">
+                            <p className="text-sm font-medium mb-1 text-center text-muted-foreground">Display Format:</p>
+                            <Tabs defaultValue="chart" value={displayFormat} onValueChange={(value) => setDisplayFormat(value as DisplayFormat)} className="w-full">
+                                <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="table" disabled={isLoadingView}><TableIcon className="mr-2 h-4 w-4"/>Table</TabsTrigger>
+                                <TabsTrigger value="chart" disabled={isLoadingView}><BarChart2 className="mr-2 h-4 w-4"/>Chart</TabsTrigger>
+                                </TabsList>
+                            </Tabs>
+                        </div>
+                    )}
+
                     {showSmartFiltersUI && activeView && smartFilterPresetsByView[activeView as ActiveViewNotNull] && (
                       <Card className="mt-4 border-primary/50">
                         <CardHeader className="pb-2 pt-4">
@@ -726,17 +735,6 @@ export default function SessionInsightsPage() {
                     )}
 
 
-                    {activeView && ( 
-                        <div className="pt-4">
-                            <p className="text-sm font-medium mb-1 text-center text-muted-foreground">Display Format:</p>
-                            <Tabs defaultValue="chart" value={displayFormat} onValueChange={(value) => setDisplayFormat(value as DisplayFormat)} className="w-full">
-                                <TabsList className="grid w-full grid-cols-2">
-                                <TabsTrigger value="table" disabled={isLoadingView}><TableIcon className="mr-2 h-4 w-4"/>Table</TabsTrigger>
-                                <TabsTrigger value="chart" disabled={isLoadingView}><BarChart2 className="mr-2 h-4 w-4"/>Chart</TabsTrigger>
-                                </TabsList>
-                            </Tabs>
-                        </div>
-                    )}
                    <Button 
                         onClick={handleActivateSmartFilters}
                         disabled={isLoadingSmartFilters || !rawSessionData || !activeView}
@@ -767,7 +765,7 @@ export default function SessionInsightsPage() {
                       </>
                     ) : (
                       <>
-                        <Sparkles className="mr-2 h-4 w-4" />
+                        <Bot className="mr-2 h-4 w-4" /> {/* Changed from Sparkles */}
                         Analyze with AI
                       </>
                     )}
@@ -776,11 +774,11 @@ export default function SessionInsightsPage() {
               </Card>
             )}
           </div>
-          {/* Right Scrollable Content Column */}
+          
           <div className="lg:col-span-2 space-y-8">
             {renderViewContent()}
             
-            <div ref={aiResultsRef} className="space-y-8"> {/* AI Results Container */}
+            <div ref={aiResultsRef} className="space-y-8">
               {isLoadingAi && (
                 <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-primary/30 rounded-lg min-h-[300px] bg-card">
                   <div className="flex items-center gap-4 mb-6">
@@ -792,12 +790,8 @@ export default function SessionInsightsPage() {
                 </div>
               )}
 
-              {!isLoadingAi && (analysisResult || maintenanceSuggestion) && (
-                <>
-                  {analysisResult && <UsagePatternsDisplay data={analysisResult} />}
-                  {maintenanceSuggestion && <MaintenanceSuggestionDisplay data={maintenanceSuggestion} />}
-                  <AnomalyAlertDisplay />
-                </>
+              {!isLoadingAi && analysisResult && (
+                <SessionInsightsDisplay data={analysisResult} />
               )}
             </div>
           </div>
