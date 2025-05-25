@@ -18,16 +18,20 @@ export function AppHeader() {
       description: "Please wait while we capture the page.",
     });
 
+    const originalScrollX = window.scrollX;
+    const originalScrollY = window.scrollY;
+    window.scrollTo(0, 0); // Scroll to top-left
+
     try {
-      // Attempt to capture the entire documentElement
       const canvas = await html2canvas(document.documentElement, {
-        useCORS: true, // Important if you have images from other domains
-        allowTaint: true, // For CORS images, may be needed
-        logging: false, // Disable html2canvas console logs for cleaner output
-        // Ensure scrolling to the top is handled by html2canvas if possible,
-        // or manage scroll position carefully if fixed elements are an issue.
-        // html2canvas attempts to render the whole element, including off-screen parts.
-        // Explicitly setting scrollX/Y in options can sometimes interfere.
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+        scale: window.devicePixelRatio || 1, // Render at device resolution
+        scrollX: -originalScrollX, // Account for original scroll position
+        scrollY: -originalScrollY,
+        windowWidth: document.documentElement.scrollWidth,
+        windowHeight: document.documentElement.scrollHeight,
       });
 
       const image = canvas.toDataURL("image/png", 1.0);
@@ -47,9 +51,10 @@ export function AppHeader() {
       toast({
         variant: "destructive",
         title: "Screenshot Failed",
-        description: typeof error === 'string' ? error : "Could not capture the page. Please try again.",
+        description: typeof error === 'string' ? error : (error instanceof Error ? error.message : "Could not capture the page. Please try again."),
       });
     } finally {
+      window.scrollTo(originalScrollX, originalScrollY); // Restore scroll position
       setIsSharing(false);
     }
   };
