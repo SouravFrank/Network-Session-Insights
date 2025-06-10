@@ -258,7 +258,7 @@ export default function SessionInsightsPage() {
           throw new Error(`API request failed with status ${response.status}`);
         }
         const result = await response.json();
-        if (result && result.success && Array.isArray(result.data) && result.data.length > 0) {
+        if (result && Array.isArray(result.data) && result.data.length > 0) {
           const sessionDataString = JSON.stringify(result.data, null, 2);
           handleDataLoadSubmit(sessionDataString);
           toast({
