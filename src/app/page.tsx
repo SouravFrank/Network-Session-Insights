@@ -225,6 +225,70 @@ export default function SessionInsightsPage() {
   const [smartFilteredDisplayData, setSmartFilteredDisplayData] = React.useState<any[] | null>(null);
   const [activeSmartFilterLabel, setActiveSmartFilterLabel] = React.useState<string | null>(null);
 
+  const [isLoadingInitialData, setIsLoadingInitialData] = React.useState(true);
+  const [clientCurrentTime, setClientCurrentTime] = React.useState<string | null>(null);
+
+
+  const handleDataLoadSubmit = React.useCallback((sessionDataText: string) => {
+    setRawSessionData(sessionDataText);
+    setParsedSessions(null);
+    setFilteredSessionViewData(null);
+    setDailyAggregatedData(null);
+    setWeeklyAggregatedData(null);
+    setMonthlyAggregatedData(null);
+    setAnalysisResult(null);
+    setActiveView(null); 
+    setDisplayFormat('chart');
+    setDateFrom(undefined);
+    setDateTo(undefined);
+    setIsDataInputVisible(false); // Hide form after successful load
+    setShowSmartFiltersUI(false);
+    setSmartFilteredDisplayData(null);
+    setActiveSmartFilterLabel(null);
+    // Toast handled by caller (API load or manual submission)
+  }, []);
+
+
+  React.useEffect(() => {
+    const fetchInitialData = async () => {
+      setIsLoadingInitialData(true);
+      try {
+        const response = await fetch('https://network-session-backend.onrender.com/api/network-usage');
+        if (!response.ok) {
+          throw new Error(`API request failed with status ${response.status}`);
+        }
+        const result = await response.json();
+        if (result && Array.isArray(result.data) && result.data.length > 0) {
+          const sessionDataString = JSON.stringify(result.data, null, 2);
+          handleDataLoadSubmit(sessionDataString);
+          toast({
+            title: "Data Loaded from API",
+            description: "Session data has been automatically fetched and loaded.",
+          });
+        } else {
+          setIsDataInputVisible(true);
+          toast({
+            title: "No Initial Data",
+            description: "Could not fetch initial session data from the API or data was empty. Please input manually.",
+            variant: "default"
+          });
+        }
+      } catch (error: any) {
+        console.error("Failed to fetch initial session data:", error);
+        setIsDataInputVisible(true);
+        toast({
+          variant: "destructive",
+          title: "API Error",
+          description: `Failed to load initial data: ${error.message}. Please input manually.`,
+        });
+      } finally {
+        setIsLoadingInitialData(false);
+      }
+    };
+    fetchInitialData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handleDataLoadSubmit]); // Added handleDataLoadSubmit to dependencies
+
 
   React.useEffect(() => {
     if (!rawSessionData) {
@@ -251,27 +315,6 @@ export default function SessionInsightsPage() {
     }
   }, [activeView, rawSessionData]);
 
-  const handleDataLoadSubmit = (sessionDataText: string) => {
-    setRawSessionData(sessionDataText);
-    setParsedSessions(null);
-    setFilteredSessionViewData(null);
-    setDailyAggregatedData(null);
-    setWeeklyAggregatedData(null);
-    setMonthlyAggregatedData(null);
-    setAnalysisResult(null);
-    setActiveView(null); 
-    setDisplayFormat('chart');
-    setDateFrom(undefined);
-    setDateTo(undefined);
-    setIsDataInputVisible(false);
-    setShowSmartFiltersUI(false);
-    setSmartFilteredDisplayData(null);
-    setActiveSmartFilterLabel(null);
-    toast({
-        title: "Data Loaded",
-        description: "Session data is ready. Select a view (Session, Daily, etc.) to process and display.",
-    });
-  };
 
   const processAndSetView = async (viewType: ActiveView) => {
     if (!rawSessionData) {
@@ -405,7 +448,6 @@ export default function SessionInsightsPage() {
     }
   };
   
-  const [clientCurrentTime, setClientCurrentTime] = React.useState<string | null>(null);
   React.useEffect(() => {
     setClientCurrentTime(new Date().toLocaleTimeString());
   }, []);
@@ -554,7 +596,7 @@ export default function SessionInsightsPage() {
           </Card>
         ) : <MonthlyAggregationChart data={dataToDisplay as RawMonthAggregation[]} chartTitlePrefix={chartTitlePrefix} />;
       default:
-        if (rawSessionData) { 
+        if (rawSessionData && !isLoadingInitialData) { 
             return (
                 <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-muted-foreground/30 rounded-lg min-h-[300px] text-center">
                   <List className="h-12 w-12 text-muted-foreground mb-4" />
@@ -565,45 +607,69 @@ export default function SessionInsightsPage() {
                 </div>
             );
         }
-        return (
-            <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-muted-foreground/30 rounded-lg min-h-[300px] text-center">
-                <FileJson className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-lg font-medium text-muted-foreground mb-1">Load Your Session Data</p>
-                <p className="text-sm text-muted-foreground">
-                Use the form on the left to input your session data in JSON format.
-                </p>
-            </div>
-        );
+        // If still loading initial data, this section won't render due to isLoadingInitialData check higher up.
+        // If initial load failed and form is visible, this default won't be hit.
+        // This covers the case where initial load done, no rawSessionData, and form not forced visible.
+        if (!isLoadingInitialData && !rawSessionData && !isDataInputVisible) {
+          return (
+              <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed border-muted-foreground/30 rounded-lg min-h-[300px] text-center">
+                  <FileJson className="h-12 w-12 text-muted-foreground mb-4" />
+                  <p className="text-lg font-medium text-muted-foreground mb-1">Load Your Session Data</p>
+                  <p className="text-sm text-muted-foreground">
+                    No data automatically loaded. Use the form on the left to input your session data in JSON format.
+                  </p>
+              </div>
+          );
+        }
+        return null; // Or a placeholder while initial data is loading / form is about to be shown
     }
   };
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <AppHeader />
-      <main className="flex-grow px-4 md:px-6 py-8 w-full lg:overflow-y-hidden">
+      <main className="flex-grow px-4 md:px-6 py-8 w-full">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-full">
           
           <div className="lg:col-span-1 space-y-6 lg:sticky lg:top-20 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:self-start lg:pr-4">
-           
-            {isDataInputVisible || !rawSessionData ? (
-                <>
-                  {rawSessionData && (
-                    <Button variant="outline" onClick={() => setIsDataInputVisible(false)} className="w-full">
-                      <EyeOff className="mr-2 h-4 w-4" /> Hide Data Input
-                    </Button>
-                  )}
-                  <DataInputForm 
-                    onSubmit={handleDataLoadSubmit} 
-                    isLoading={isLoadingView || isLoadingAi} 
-                  />
-                </>
-              ) : (
-                <Button variant="outline" onClick={() => setIsDataInputVisible(true)} className="w-full">
-                  <Eye className="mr-2 h-4 w-4" /> Show Data Input
-                </Button>
-              )}
+            {isLoadingInitialData ? (
+              <Card className="shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    Loading Initial Data...
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-muted-foreground">Attempting to fetch session data from the server. Please wait.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                {isDataInputVisible || !rawSessionData ? (
+                  <>
+                    {rawSessionData && (
+                      <Button variant="outline" onClick={() => setIsDataInputVisible(false)} className="w-full">
+                        <EyeOff className="mr-2 h-4 w-4" /> Hide Data Input
+                      </Button>
+                    )}
+                    <DataInputForm 
+                      onSubmit={(data) => {
+                        handleDataLoadSubmit(data);
+                        toast({ title: "Data Loaded", description: "Session data has been manually loaded." });
+                      }} 
+                      isLoading={isLoadingView || isLoadingAi} 
+                    />
+                  </>
+                ) : (
+                  <Button variant="outline" onClick={() => setIsDataInputVisible(true)} className="w-full">
+                    <Eye className="mr-2 h-4 w-4" /> Show Data Input
+                  </Button>
+                )}
+              </>
+            )}
             
-            {rawSessionData && ( 
+            {rawSessionData && !isLoadingInitialData && ( 
               <Card className="shadow-lg">
                 <CardHeader>
                   <CardTitle>View Options & Filters</CardTitle>
@@ -760,7 +826,7 @@ export default function SessionInsightsPage() {
             )}
           </div>
           
-          <div className="lg:col-span-2 space-y-8 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto">
+          <div className="lg:col-span-2 space-y-8">
             {renderViewContent()}
             
             <div ref={aiResultsRef} className="space-y-8">
@@ -789,5 +855,4 @@ export default function SessionInsightsPage() {
     </div>
   );
 }
-
     
