@@ -1,6 +1,7 @@
 {
-  "name": "nextn",
-  "version": "0.1.0",
+  "homepage": "https://souravfrank.github.io/network-session-insights/",
+  "name": "network-session-insights",
+  "version": "1.0.2",
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack -p 9002",
@@ -8,6 +9,8 @@
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "build": "next build",
     "start": "next start",
+    "predeploy": "npm run build && touch out/.nojekyll",
+    "deploy": "gh-pages -d out",
     "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },
@@ -61,6 +64,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "genkit-cli": "^1.8.0",
+    "gh-pages": "^6.3.0",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"

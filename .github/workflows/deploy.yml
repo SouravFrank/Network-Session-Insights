@@ -1,0 +1,49 @@
+name: Deploy Network-Session-Insights Next.js to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main # Trigger this workflow when code is pushed to the 'main' branch
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest # Use the latest Ubuntu runner
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4 # Action to checkout your repository code
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4 # Action to set up Node.js environment
+        with:
+          node-version: '20' # Specify your Node.js version (e.g., '18', '20', '22')
+          cache: 'npm' # Cache node modules to speed up builds
+
+      - name: Install dependencies
+        run: npm ci # Use 'npm ci' for clean installs in CI environments
+
+      - name: Load environment variables (from GitHub Secrets)
+        run: |
+          echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env.production
+          echo "NEXT_PUBLIC_BASE_PATH=${{ secrets.NEXT_PUBLIC_BASE_PATH }}" >> .env.production
+          # Add more environment variables here if needed
+          # echo "NEXT_PUBLIC_ANOTHER_VAR=${{ secrets.NEXT_PUBLIC_ANOTHER_VAR }}" >> .env.production
+        env:
+          # Define your environment variables here. They will come from GitHub Secrets.
+          # The names here must match your GitHub Secrets.
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          NEXT_PUBLIC_BASE_PATH: ${{ secrets.NEXT_PUBLIC_BASE_PATH }}
+
+      - name: Build Next.js project
+        run: npm run build # This will run 'next build' and generate 'out/'
+
+      - name: Add .nojekyll file
+        run: touch out/.nojekyll # Ensure GitHub Pages doesn't use Jekyll
+
+      - name: Deploy to GitHub Pages
+        uses: peaceiris/actions-gh-pages@v4 # Third-party action for deploying to gh-pages
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }} # Built-in token for authentication
+          publish_dir: ./out # Directory to publish
+          # For user pages (username.github.io), you can omit 'publish_branch' as it defaults to 'gh-pages'
+          # publish_branch: gh-pages # Specify the branch to publish to (defaults to gh-pages)
