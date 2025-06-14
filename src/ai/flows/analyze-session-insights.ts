@@ -9,7 +9,6 @@
  * - AnalyzeSessionInsightsOutput - The return type for the analyzeSessionInsights function.
  */
 
-import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const AnalyzeSessionInsightsInputSchema = z.object({
@@ -32,5 +31,21 @@ export type AnalyzeSessionInsightsOutput = z.infer<typeof AnalyzeSessionInsights
 export async function analyzeSessionInsights(
   input: AnalyzeSessionInsightsInput
 ): Promise<AnalyzeSessionInsightsOutput> {
-  return ""//API Call //analyzeSessionInsightsFlow(input);
+  // POST API call to http://localhost:8080/api/analyzeSessionInsights
+  const response = await fetch('http://localhost:8080/api/analyzeSessionInsights', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      sessionData: typeof input.sessionData !== "string" ? JSON.stringify(input.sessionData) : input.sessionData,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`API call failed with status ${response.status}`);
+  }
+
+  const data = await response.json();
+  return data.data as AnalyzeSessionInsightsOutput;
 }
