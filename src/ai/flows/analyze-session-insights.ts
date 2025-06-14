@@ -1,5 +1,3 @@
-'use server';
-
 /**
  * @fileOverview Analyzes session data to provide insights at session, daily, weekly, and monthly levels,
  * and identifies peak/quiet hours.
@@ -9,24 +7,20 @@
  * - AnalyzeSessionInsightsOutput - The return type for the analyzeSessionInsights function.
  */
 
-import {z} from 'genkit';
+// Define input type
+export interface AnalyzeSessionInsightsInput {
+  sessionData: string; // Raw session data, including timestamps and usage metrics.
+}
 
-const AnalyzeSessionInsightsInputSchema = z.object({
-  sessionData: z
-    .string()
-    .describe('Raw session data, including timestamps and usage metrics.'),
-});
-export type AnalyzeSessionInsightsInput = z.infer<typeof AnalyzeSessionInsightsInputSchema>;
-
-const AnalyzeSessionInsightsOutputSchema = z.object({
-  sessionLevelSummary: z.string().describe("A concise summary (1-2 sentences) highlighting notable patterns or outliers at the individual session level. e.g., exceptionally long sessions, sessions with unusually high/low data transfer, or clusters of activity."),
-  dailyLevelSummary: z.string().describe("A concise summary (1-2 sentences) of key observations from a daily aggregation perspective. e.g., identify days with peak/lowest usage, or noticeable daily trends like higher usage on weekends."),
-  weeklyLevelSummary: z.string().describe("A concise summary (1-2 sentences) of key observations from a weekly aggregation perspective. e.g., identify trends like increasing/decreasing weekly usage, or standout weeks."),
-  monthlyLevelSummary: z.string().describe("A concise summary (1-2 sentences) of key observations from a monthly aggregation perspective. e.g., identify trends or standout months."),
-  peakHours: z.string().describe("The identified peak hours of system usage based on the session data."),
-  quietHours: z.string().describe("The identified quiet hours of system usage based on the session data."),
-});
-export type AnalyzeSessionInsightsOutput = z.infer<typeof AnalyzeSessionInsightsOutputSchema>;
+// Define output type
+export interface AnalyzeSessionInsightsOutput {
+  sessionLevelSummary: string;   // Concise summary for session level patterns/outliers.
+  dailyLevelSummary: string;     // Concise summary for daily aggregation.
+  weeklyLevelSummary: string;    // Concise summary for weekly aggregation.
+  monthlyLevelSummary: string;   // Concise summary for monthly aggregation.
+  peakHours: string;             // Identified peak hours of system usage.
+  quietHours: string;            // Identified quiet hours of system usage.
+}
 
 export async function analyzeSessionInsights(
   input: AnalyzeSessionInsightsInput
