@@ -26,7 +26,7 @@ export async function analyzeSessionInsights(
   input: AnalyzeSessionInsightsInput
 ): Promise<AnalyzeSessionInsightsOutput> {
   // POST API call to http://localhost:8080/api/analyzeSessionInsights
-  const response = await fetch('http://localhost:8080/api/analyzeSessionInsights', {
+  const response = await fetch('https://network-session-backend.onrender.com/api/analyzeSessionInsights', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
