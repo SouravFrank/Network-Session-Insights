@@ -1,5 +1,5 @@
 {
-  "homepage": "https://souravfrank.github.io/network-session-insights/",
+  "homepage": "https://souravfrank.github.io/Network-Session-Insights/",
   "name": "network-session-insights",
   "version": "1.0.2",
   "private": true,
@@ -8,6 +8,7 @@
     "genkit:dev": "genkit start -- tsx src/ai/dev.ts",
     "genkit:watch": "genkit start -- tsx --watch src/ai/dev.ts",
     "build": "next build",
+    "gh-deploy": "GITHUB_PAGES=true next build && touch out/.nojekyll && gh-pages -d out",
     "start": "next start",
     "predeploy": "npm run build && touch out/.nojekyll",
     "deploy": "gh-pages -d out",
